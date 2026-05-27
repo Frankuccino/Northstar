@@ -1,0 +1,14 @@
+# Dependencies
+node_modules
+# env
+.env
+# build
+dist
+#logs
+*.log
+# OS
+.DS_Store
+# Drizzle
+drizzle
+
+*.db
