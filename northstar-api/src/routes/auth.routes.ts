@@ -6,15 +6,15 @@ import {
   meController,
 } from "../controllers/auth.controller.js";
 
-import { authMiddleware } from "../middleware/auth.middleware.js";
-import { requireRole } from "../middleware/role.middleware.js";
+import { authenticate } from "../middleware/auth.middleware.js";
+import { authorize } from "../middleware/role.middleware.js";
 
 const router = express.Router();
 
 router.post("/register", registerController);
 router.post("/login", loginController);
-router.get("/me", authMiddleware, meController);
-router.get("/admin", authMiddleware, requireRole("admin"), (_, res) => {
+router.get("/me", authenticate, meController);
+router.get("/admin", authenticate, authorize("admin"), (_, res) => {
   res.json({ message: "Welcome Admin" });
 });
 
