@@ -1,5 +1,5 @@
 import request from "supertest";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+
 import app from "../src/app.js";
 import { db } from "../src/db/index.js";
 import { users } from "../src/db/schema.js";
