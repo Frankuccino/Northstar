@@ -9,7 +9,7 @@ export const registerController = async (req: Request, res: Response) => {
     const user = await register(email, password, name);
 
     const { password: _, ...safeUser } = user;
-    return res.json(safeUser);
+    return res.status(201).json(safeUser);
   } catch (err: unknown) {
     if (err instanceof Error) {
       return res.status(400).json({ error: err.message });
