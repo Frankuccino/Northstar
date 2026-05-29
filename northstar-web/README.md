@@ -29,6 +29,74 @@ src/
 └── index.ts            # App entry point
 ```
 
+
+## Feature-driven architecture
+```zsh
+.
+├── eslint.config.js
+├── index.html
+├── package-lock.json
+├── package.json
+├── public
+│   ├── favicon.svg
+│   └── icons.svg
+├── README.md
+├── src
+│   ├── app
+│   │   ├── index.tsx
+│   │   ├── layouts
+│   │   │   ├── auth-layout.tsx
+│   │   │   └── dashboard-layout.tsx
+│   │   ├── protected-route.tsx
+│   │   ├── providers
+│   │   │   ├── index.tsx
+│   │   │   ├── query-provider.tsx
+│   │   │   └── router-provider.tsx
+│   │   ├── public-route.tsx
+│   │   └── routes
+│   ├── App.tsx
+│   ├── components
+│   │   └── ui
+│   ├── features
+│   │   ├── auth
+│   │   │   ├── api
+│   │   │   ├── components
+│   │   │   ├── hooks
+│   │   │   ├── index.ts
+│   │   │   ├── pages
+│   │   │   ├── schemas
+│   │   │   ├── types
+│   │   │   └── utils
+│   │   │       └── token.ts
+│   │   └── employees
+│   │       ├── api
+│   │       │   └── employee-query-keys.ts
+│   │       ├── components
+│   │       ├── hooks
+│   │       ├── index.ts
+│   │       ├── pages
+│   │       ├── schemas
+│   │       ├── types
+│   │       └── utils
+│   ├── index.css
+│   ├── lib
+│   │   ├── axios.ts
+│   │   ├── cn.ts
+│   │   ├── env.ts
+│   │   ├── query-client.ts
+│   │   └── utils.ts
+│   ├── main.tsx
+│   ├── pages
+│   └── styles
+│       └── global.css
+├── tsconfig.app.json
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+```
+
+
 ## 🧩 Core Design Principles
 1. Feature-first organization
 

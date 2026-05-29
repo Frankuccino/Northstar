@@ -32,3 +32,5 @@
     "vite": "^8.0.12"
   }
 }
+// Installed dependencies 
+// npm install react-router-dom axios zod react-hook-form

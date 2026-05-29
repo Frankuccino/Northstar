@@ -1,0 +1,5 @@
+// getToken
+
+// setToken
+
+// removeToken
