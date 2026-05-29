@@ -9,3 +9,11 @@ export const createEmployeeSchema = z.object({
   position: z.string().min(1),
   department: z.string().min(1),
 });
+
+export const updateEmployeeSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  email: z.email().optional(),
+  position: z.string().min(1).optional(),
+  department: z.string().min(1).optional(),
+});
