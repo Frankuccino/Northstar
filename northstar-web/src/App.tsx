@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import axios from "axios"
+import axios from "axios";
 
 type User = {
   id: number;
   email: string;
   name: string;
-}
+};
 
 //let's build the frontend as our backend works fine.
 const App = () => {
@@ -33,10 +33,10 @@ const App = () => {
         </div>
       ))}
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;
 //Let's run it both now
 // This is also now working in the broswer.
-// we can now actually see it in the browser working fine. 
+// we can now actually see it in the browser working fine.
