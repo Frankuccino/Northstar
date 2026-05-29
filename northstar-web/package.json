@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.100.14",
     "axios": "^1.16.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -32,5 +33,3 @@
     "vite": "^8.0.12"
   }
 }
-// Installed dependencies 
-// npm install react-router-dom axios zod react-hook-form
