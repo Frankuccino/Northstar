@@ -12,6 +12,7 @@
 
     "allowSyntheticDefaultImports": true
   },
+  "exclude": ["node_modules", "build", "dist", ".next"],
 
   "include": ["src"]
 }
