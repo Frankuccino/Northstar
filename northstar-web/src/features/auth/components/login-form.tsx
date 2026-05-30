@@ -22,7 +22,7 @@ export const LoginForm = () => {
     loginMutation.mutate(data, {
       onSuccess: (res) => {
         setToken(res.token);
-        navigate("/dashbaord");
+        navigate("/dashboard");
       },
     });
   };
