@@ -17,6 +17,8 @@ const TEST_USER = {
   name: "User",
 };
 
+const TEST_PASSWORD = "123456";
+
 const VALID_EMPLOYEE = {
   firstName: "John",
   lastName: "Doe",
