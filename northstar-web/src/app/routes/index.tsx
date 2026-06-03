@@ -5,7 +5,7 @@ import { AuthLayout } from "../layouts/auth-layout";
 import { PublicRoute } from "../public-route";
 import { ProtectedRoute } from "../protected-route";
 import { DashboardLayout } from "../layouts/dashboard-layout";
-import DashboardPage from "@/features/auth/pages/dashboard-page";
+import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 
 export const router = createBrowserRouter([
   {
