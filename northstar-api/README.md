@@ -13,22 +13,57 @@ A Node.js + Express + TypeScript backend.
 
 ## Test Coverage
 
-### Employees (`tests/employees.test.ts`)
-- GET /employees (unauthenticated 401, invalid token 401/403, admin 200, non-admin 403)
-- POST /employees (unauthenticated 401, non-admin 403, invalid payload 400, success 201)
-- GET /employees/:id (unauthenticated 401, non-admin 403, missing 404, success 200)
-- PATCH /employees/:id (unauthenticated 401, non-admin 403, invalid payload 400, missing 404, success 200)
-- DELETE /employees/:id (unauthenticated 401, non-admin 403, missing 404, success 200, already deleted 404)
+Total: **30 tests**
 
-### Auth (`tests/auth.test.ts`)
-- POST /auth/register (success 201, duplicate email 400)
-- POST /auth/login (success 200 with token, invalid credentials 400)
-- GET /auth/me (unauthenticated 401, authenticated 200)
+### Employees (`tests/employees.test.ts`) — 24 tests
 
-### Not yet covered
-- Manager read-only rules
-- Users ↔ Employees relation assertions
-- Password hashing edge cases
+#### GET /employees
+- Unauthenticated → 401
+- Invalid token → 401/403
+- Admin → 200
+- Non-admin → 403
+- Manager → 200
+- Manager create attempt → 403
+
+#### POST /employees
+- Unauthenticated → 401
+- Non-admin → 403
+- Invalid payload → 400
+- Admin success → 201
+
+#### GET /employees/:id
+- Unauthenticated → 401
+- Non-admin → 403
+- Missing → 404
+- Admin success → 200
+
+#### PATCH /employees/:id
+- Unauthenticated → 401
+- Non-admin → 403
+- Invalid payload → 400
+- Missing → 404
+- Admin success → 200
+
+#### DELETE /employees/:id
+- Unauthenticated → 401
+- Non-admin → 403
+- Missing → 404
+- Admin success → 200
+- Already deleted → 404
+
+### Auth (`tests/auth.test.ts`) — 6 tests
+
+#### POST /auth/register
+- Success → 201
+- Duplicate email → 400
+
+#### POST /auth/login
+- Success with token → 200
+- Invalid credentials → 400
+
+#### GET /auth/me
+- Unauthenticated → 401
+- Authenticated → 200
 
 Run all with `npm test`.
 
