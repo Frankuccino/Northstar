@@ -55,10 +55,30 @@ async function createUserAndLogin(): Promise<string> {
   return login.body.token;
 }
 
+async function createManagerAndLogin(): Promise<string> {
+  await request(app).post("/auth/register").send({
+    email: "manager.test@example.com",
+    password: TEST_PASSWORD,
+    name: "Manager",
+  });
+  await db
+    .update(users)
+    .set({ role: "manager" })
+    .where(eq(users.email, "manager.test@example.com"));
+
+  const login = await request(app).post("/auth/login").send({
+    email: "manager.test@example.com",
+    password: TEST_PASSWORD,
+  });
+
+  return login.body.token;
+}
+
 // Helper: wipe the test user after each test
 async function cleanup() {
   await db.delete(users).where(eq(users.email, TEST_ADMIN.email));
   await db.delete(users).where(eq(users.email, TEST_USER.email));
+  await db.delete(employees).where(eq(employees.email, "manager.test@example.com"));
   await db.delete(employees).where(eq(employees.email, VALID_EMPLOYEE.email));
 }
 
@@ -96,6 +116,27 @@ describe("GET /employees", () => {
     const res = await request(app)
       .get("/employees")
       .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  it("should allow a manager to fetch employees (200)", async () => {
+    const token = await createManagerAndLogin();
+
+    const res = await request(app)
+      .get("/employees")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+  });
+
+  it("should reject a manager from creating employee (403)", async () => {
+    const token = await createManagerAndLogin();
+
+    const res = await request(app)
+      .post("/employees")
+      .set("Authorization", `Bearer ${token}`)
+      .send(VALID_EMPLOYEE);
 
     expect(res.status).toBe(403);
   });

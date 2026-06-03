@@ -20,7 +20,7 @@ import {
 
 const router = Router();
 
-router.get("/", authenticate, authorize("admin"), getEmployees);
+router.get("/", authenticate, authorize("admin", "manager"), getEmployees);
 router.post(
   "/",
   authenticate,
@@ -28,7 +28,7 @@ router.post(
   validate(createEmployeeSchema),
   createEmployee,
 );
-router.get("/:id", authenticate, authorize("admin"), getEmployeeById);
+router.get("/:id", authenticate, authorize("admin", "manager"), getEmployeeById);
 router.patch(
   "/:id",
   authenticate,
