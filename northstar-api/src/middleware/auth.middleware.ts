@@ -24,9 +24,6 @@ export const authenticate = (
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload;
     req.user = decoded;
-    if (decoded.role !== "admin") {
-      return res.status(403).json({ message: "Forbidden Access" });
-    }
 
     next();
   } catch (err) {
