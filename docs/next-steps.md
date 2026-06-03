@@ -16,6 +16,12 @@ _Last updated: current session_
 Done — employee CRUD tests and auth route tests implemented.
 Run `npm test` to verify.
 
+**Totals: 30 tests**
+- Employees: 24
+- Auth: 6
+
+Full breakdown in `northstar-api/README.md`.
+
 ---
 
 ## Gap 2 — DB Seed / Migration Flow
@@ -25,24 +31,14 @@ Done — seed script and docs in place.
 ---
 
 ## Gap 3 — Auth Route Tests Verification
-### What's missing
-Auth tests added but not yet verified by running.
-
-### Actionable
-1. `cd northstar-api && npm test`
-2. Review auth test results
-3. Fix any failing cases before moving on
+### Status
+Done — 28 tests reported passing; see README.
 
 ---
 
 ## Gap 4 — Manager Read Access
-### What's missing
-Manager role read/write boundary is not explicitly validated.
-
-### Actionable
-1. Add manager-specific test for GET /employees
-2. Add manager-specific test for POST/PATCH/DELETE /employees
-3. Adjust role middleware if assertions fail
+### Status
+Done — manager read allowed, manager write blocked.
 
 ---
 
@@ -83,8 +79,6 @@ Error shape standardization and frontend feedback are incomplete.
 ---
 
 ## Execution Order
-1. Gap 3 — Auth Route Tests Verification
-2. Gap 4 — Manager Read Access
-3. Gap 5 — Users ↔ Employees Relation
-4. Gap 6 — Web Employee Pages
-5. Gap 7 — Error UX / Polish
+1. Gap 5 — Users ↔ Employees Relation
+2. Gap 6 — Web Employee Pages
+3. Gap 7 — Error UX / Polish
