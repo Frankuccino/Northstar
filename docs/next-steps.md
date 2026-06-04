@@ -78,7 +78,22 @@ Error shape standardization and frontend feedback are incomplete.
 
 ---
 
+## Gap 8 — Seed Data / Users ↔ Employees Relation Integrity
+### Status
+Done.
+### What changed
+- Fixed `src/db/seed.ts` so `employees.userId` is resolved from seeded users by matching email (`ceo.user@example.com`, `manager@example.com`, etc.), not collapsed to the admin user.
+- Added post-seed assertion: seed aborts if any employee is orphaned (`userId === null`).
+- Verified by wiping data, reseeding, and confirming via the app as admin.
+
+### Before vs After
+Before: 19/20 employees incorrectly linked to admin.
+After: all employees linked to their matching user.
+
+---
+
 ## Execution Order
-1. Gap 5 — Users ↔ Employees Relation
-2. Gap 6 — Web Employee Pages
-3. Gap 7 — Error UX / Polish
+1. ~~Gap 8~~ (done)
+2. Gap 5 — Users ↔ Employees Relation
+3. Gap 6 — Web Employee Pages
+4. Gap 7 — Error UX / Polish
