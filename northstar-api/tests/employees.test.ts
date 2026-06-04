@@ -78,10 +78,10 @@ async function createManagerAndLogin(): Promise<string> {
 
 // Helper: wipe the test user after each test
 async function cleanup() {
-  await db.delete(users).where(eq(users.email, TEST_ADMIN.email));
-  await db.delete(users).where(eq(users.email, TEST_USER.email));
   await db.delete(employees).where(eq(employees.email, "manager.test@example.com"));
   await db.delete(employees).where(eq(employees.email, VALID_EMPLOYEE.email));
+  await db.delete(users).where(eq(users.email, TEST_ADMIN.email));
+  await db.delete(users).where(eq(users.email, TEST_USER.email));
 }
 
 describe("GET /employees", () => {
