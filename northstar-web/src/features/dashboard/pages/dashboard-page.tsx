@@ -1,3 +1,4 @@
+import { CreateEmployeeDialog } from "@/features/employees/components/create-employee-dialog";
 import { useEmployees } from "@/features/employees/hooks/use-employees";
 
 export const DashboardPage = () => {
@@ -14,6 +15,8 @@ export const DashboardPage = () => {
   return (
     <div>
       <h1>Employees</h1>
+
+      <CreateEmployeeDialog />
 
       {data?.map((employee) => (
         <div key={employee.id}>
