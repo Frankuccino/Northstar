@@ -2,98 +2,130 @@
 
 _Last updated: current session_
 
-## Current Tooling/Ops
-- Stack: Node/Express/TS API, React 19 + Vite + TS frontend
-- API validation: Zod
-- DB: Drizzle + Postgres
-- Tests: Vitest + Supertest
-- State/data: React Query
-
----
-
 ## Gap 1 — API Test Coverage (API)
 ### Status
-Done — employee CRUD tests and auth route tests implemented.
-Run `npm test` to verify.
+Done.
 
-**Totals: 30 tests**
-- Employees: 24
+**Totals: 31 tests**
+- Employees: 25
 - Auth: 6
 
 Full breakdown in `northstar-api/README.md`.
 
----
-
 ## Gap 2 — DB Seed / Migration Flow
 ### Status
-Done — seed script and docs in place.
-
----
+Done.
 
 ## Gap 3 — Auth Route Tests Verification
 ### Status
-Done — 28 tests reported passing; see README.
-
----
+Done.
 
 ## Gap 4 — Manager Read Access
 ### Status
-Done — manager read allowed, manager write blocked.
-
----
+Done.
 
 ## Gap 5 — Users ↔ Employees Relation
-### What's missing
-Relation exists in schema but needs end-to-end verification.
-
-### Actionable
-1. Confirm schema foreign key on employees.user_id
-2. Verify seeded employee in DB is linked to seeded user
-3. Add API response assertion for relation if exposed
-4. Add one integration test for relation behavior
-
----
+### Status
+Done.
+- FK confirmed: `employees.user_id → users.id`
+- Seed linkage verified and fixed
+- Added relation response coverage in `tests/employees.test.ts`
+- **31/31 tests passing**
 
 ## Gap 6 — Web Employee Pages
-### What's missing
-Employee list/create/edit/delete UI not built.
+### Status
+In progress (frontend owner-led, review by mentor).
 
-### Actionable
-1. Create `features/employees/pages/employees-page.tsx`
-2. Create `features/employees/pages/employee-form-page.tsx`
-3. Add delete confirmation and error/loading UI
-4. Wire protected route for `/employees`
+### Deliverables
+1. `northstar-web/src/features/employees/pages/employees-page.tsx`
+2. `northstar-web/src/features/employees/pages/employee-form-page.tsx`
+3. Delete confirmation UI
+4. Error/loading UI and empty state
+5. Protected route for `/employees`
 
----
+### Route shape to match
+```
+/employees               (list / create)
+/employees/:id           (view / edit)
+```
+
+### Existing frontend pieces to reuse
+- `src/features/employees/api/employees.api.ts`
+- `src/features/employees/hooks/use-employees.ts`
+- `src/features/employees/types/employee.ts`
+
+### shadcn components
+| Component | Purpose | Install / Use |
+|-----------|---------|---------------|
+| `input` | Text inputs for employee form fields | `npx shadcn@latest add input` |
+| `label` | Form field labels binding to inputs | `npx shadcn@latest add label` |
+| `button` | Submit and cancel actions in forms | `npx shadcn@latest add button` |
+| `card` | Page shell for create form | `npx shadcn@latest add card` |
+| `dialog` | Delete confirmation modal | `npx shadcn@latest add dialog` |
+| `toast` / `sonner` | Success/error feedback after create/update/delete | `npx shadcn@latest add toast sonner` |
+| `skeleton` | Loading placeholders for list and form states | `npx shadcn@latest add skeleton` |
+| `dropdown-menu` | Row actions for list items | `npx shadcn@latest add dropdown-menu` |
+| `table` | Employee list rendering | `npx shadcn@latest add table` |
+
+### Install order (create employee first)
+- Install in this order for the create flow:
+  1. `input`
+  2. `label`
+  3. `button`
+  4. `card`
+- Install `table` before building employee list pages
+- Install `dialog`, `toast`, `skeleton` for delete/loading/error UX after list/create form is stable
+
+### Recommended UI choices
+- Loading UI: keep it Bulletproof-style; if missing, prefer a small utility component in `src/features/employees/components/` before adding a new dependency
+- Skeleton loaders: build minimal wrappers around existing CSS tokens rather than adding a heavy library immediately
+- Empty state: plain conditional render first; replace with a shared component after the shape is stable
+- For delete confirmation: a small reusable confirm dialog in `src/lib/components/` if the component is generic enough
+
+### Done checklist
+- List renders seeded employees via existing API client
+- Create form updates list on success
+- Edit form pre-fills from fetched employee
+- Delete asks for confirmation, then removes from list
+- Route is protected for admin/manager per backend rules
+- No new lint or type errors
 
 ## Gap 7 — Error UX / Polish
-### What's missing
-Error shape standardization and frontend feedback are incomplete.
+### Status
+Pending.
 
-### Actionable
-1. Define shared API error shape in backend
-2. Add shared toast/alert component in frontend
-3. Apply to auth and employee flows
-4. Add empty state + skeleton loaders
+### Intent
+- Shared API error shape in backend
+- Shared toast/alert component in frontend
+- Apply to auth and employee flows
+- Empty state + skeleton loaders
 
----
+### Recommendation
+Do not add a UI feedback library yet. Start with a small `src/lib/toast.tsx` wrapper using existing state/CSS. Promote to a library only once the component is used in 3+ places.
 
 ## Gap 8 — Seed Data / Users ↔ Employees Relation Integrity
 ### Status
 Done.
-### What changed
-- Fixed `src/db/seed.ts` so `employees.userId` is resolved from seeded users by matching email (`ceo.user@example.com`, `manager@example.com`, etc.), not collapsed to the admin user.
-- Added post-seed assertion: seed aborts if any employee is orphaned (`userId === null`).
-- Verified by wiping data, reseeding, and confirming via the app as admin.
-
-### Before vs After
-Before: 19/20 employees incorrectly linked to admin.
-After: all employees linked to their matching user.
-
----
 
 ## Execution Order
 1. ~~Gap 8~~ (done)
-2. Gap 5 — Users ↔ Employees Relation
+2. ~~Gap 5~~ (done)
 3. Gap 6 — Web Employee Pages
 4. Gap 7 — Error UX / Polish
+
+## Current Application State (as of 2026-06-03)
+- Backend API: `northstar-api`
+  - Auth routes: register/login/me, 6 tests passing
+  - Employee CRUD routes: admin-only create/update/delete, admin+manager read, 25 tests passing
+  - DB: Drizzle + Postgres, seed fixes applied, cleanup order fixed
+  - Tests: **31/31 passing**
+- Frontend: `northstar-web`
+  - Auth pages: login, register, protected/public route wrappers
+  - Dashboard page + dashboard layout present
+  - Employee pages: **in progress**
+  - Employee API client, hooks, and types scaffolded
+
+## Consolidated Current State
+- Backend: employee CRUD + auth stable and tested
+- Frontend: auth scaffold complete, employee UI being built next
+- Frontend owner should prepare: route structure, reuse existing employee client/hooks/types, start minimal with conditional UI for empty/loading/error states
