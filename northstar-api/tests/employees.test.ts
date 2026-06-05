@@ -358,3 +358,32 @@ describe("DELETE /employees/:id", () => {
     expect(res.status).toBe(404);
   });
 });
+
+// Relation coverage: users ↔ employees
+describe("GET /employees/:id — relation coverage", () => {
+  it("should return the userId when queried by id (200)", async () => {
+    const token = await createAdminAndLogin();
+
+    const [admin] = await db.select().from(users).where(eq(users.email, TEST_ADMIN.email));
+    if (!admin) throw new Error("Admin user not found");
+
+    const [employee] = await db.insert(employees).values({
+      firstName: "Relation",
+      lastName: "Test",
+      email: "relation.employee@example.com",
+      position: "QA",
+      department: "Testing",
+      userId: admin.id,
+    }).returning();
+
+    const res = await request(app)
+      .get(`/employees/${employee.id}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      email: "relation.employee@example.com",
+      userId: admin.id,
+    });
+  });
+});
