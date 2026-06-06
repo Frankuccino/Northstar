@@ -17,6 +17,8 @@ const TEST_USER = {
   name: "User",
 };
 
+const MANAGER_EMAIL = "manager.test@example.com";
+
 const TEST_PASSWORD = "123456";
 
 const VALID_EMPLOYEE = {
@@ -78,8 +80,16 @@ async function createManagerAndLogin(): Promise<string> {
 
 // Helper: wipe the test user after each test
 async function cleanup() {
-  await db.delete(employees).where(eq(employees.email, "manager.test@example.com"));
-  await db.delete(employees).where(eq(employees.email, VALID_EMPLOYEE.email));
+  const testEmployeeEmails = [
+    VALID_EMPLOYEE.email,
+    "relation.employee@example.com",
+    MANAGER_EMAIL,
+  ];
+
+  await db.delete(employees).where(eq(employees.email, testEmployeeEmails[0]));
+  await db.delete(employees).where(eq(employees.email, testEmployeeEmails[1]));
+  await db.delete(employees).where(eq(employees.email, testEmployeeEmails[2]));
+
   await db.delete(users).where(eq(users.email, TEST_ADMIN.email));
   await db.delete(users).where(eq(users.email, TEST_USER.email));
 }
