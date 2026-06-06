@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest",
+    "test": "SKIP_RATE_LIMIT=true vitest",
     "dev": "tsx watch src/index.ts",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
@@ -21,6 +21,8 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "postgres": "^3.4.9",
     "zod": "^4.4.3"
