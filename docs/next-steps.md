@@ -113,12 +113,18 @@ Done.
 3. Gap 6 — Web Employee Pages
 4. Gap 7 — Error UX / Polish
 
-## Current Application State (as of 2026-06-03)
+## Current Application State (as of current session)
 - Backend API: `northstar-api`
   - Auth routes: register/login/me, 6 tests passing
   - Employee CRUD routes: admin-only create/update/delete, admin+manager read, 25 tests passing
   - DB: Drizzle + Postgres, seed fixes applied, cleanup order fixed
   - Tests: **31/31 passing**
+  - Security middleware added and wired:
+    - `src/middleware/security.middleware.ts`: helmet wrapper with CSP disabled for now
+    - `src/middleware/rate-limit.middleware.ts`: 100 req / 15 min, standard headers only
+    - Both registered in `src/app.ts` after CORS, before routes
+    - Rate-limit import aliased to avoid TS name collision (`rateLimit as rateLimiter`)
+  - Test cleanup hardened: `cleanup()` now deletes test employees by constant email list (`VALID_EMPLOYEE.email`, `relation.employee@example.com`, `MANAGER_EMAIL`) instead of hardcoded strings, keeping test data fully driven by constants
 - Frontend: `northstar-web`
   - Auth pages: login, register, protected/public route wrappers
   - Dashboard page + dashboard layout present
@@ -129,3 +135,38 @@ Done.
 - Backend: employee CRUD + auth stable and tested
 - Frontend: auth scaffold complete, employee UI being built next
 - Frontend owner should prepare: route structure, reuse existing employee client/hooks/types, start minimal with conditional UI for empty/loading/error states
+
+## Backend Notes
+- `package.json` `test` script was changed from `vitest` to `SKIP_RATE_LIMIT=true vitest`
+- This sets an env var so `rate-limit.middleware.ts` `skip()` can bypass rate limiting during tests
+- Behavior split:
+  - `npm test` or `npm run test` = `SKIP_RATE_LIMIT=true` = rate limiter disabled for test runs
+  - `npm run dev` = no env var = rate limiter active in development
+
+## Security Review — Helmet Baseline
+- `contentSecurityPolicy` is disabled in `security.middleware.ts`
+- This means there is **no CSP header** in responses right now
+- Reasons paused for now:
+  - Inline scripts/styles during active frontend work would be blocked by a strict policy
+  - Easier to enable CSP once the frontend build is static and assets are fingerprinted
+- Active protections from helmet that **are** in place (unless overridden elsewhere):
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options`
+  - `Referrer-Policy`
+  - `Permissions-Policy` if specified
+  - HSTS if specified
+- Rate limiter:
+  - 100 requests per 15 minutes per client IP
+  - Skips when `SKIP_RATE_LIMIT=true`
+  - Returns standard `RateLimit-*` headers
+- Environment split:
+  - Tests: rate limiter disabled via `SKIP_RATE_LIMIT=true`
+  - Dev and above: rate limiter active, helmet active but CSP off
+
+## Daily Time Tracking
+- Backend today:
+  - First principles build: 1h 30m
+  - Additional backend session: 1h 20m
+  - Additional backend session: 1h 30m
+  - Total backend today: 4h 20m
+- Added +1h 30m from Notion daily entry, update backend total accordingly
