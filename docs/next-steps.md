@@ -55,40 +55,22 @@ In progress (frontend owner-led, review by mentor).
 - `src/features/employees/types/employee.ts`
 
 ### shadcn components
-| Component | Purpose | Install / Use |
-|-----------|---------|---------------|
-| `input` | Text inputs for employee form fields | `npx shadcn@latest add input` |
-| `label` | Form field labels binding to inputs | `npx shadcn@latest add label` |
-| `button` | Submit and cancel actions in forms | `npx shadcn@latest add button` |
-| `card` | Page shell for create form | `npx shadcn@latest add card` |
-| `dialog` | Delete confirmation modal | `npx shadcn@latest add dialog` |
-| `toast` / `sonner` | Success/error feedback after create/update/delete | `npx shadcn@latest add toast sonner` |
-| `skeleton` | Loading placeholders for list and form states | `npx shadcn@latest add skeleton` |
-| `dropdown-menu` | Row actions for list items | `npx shadcn@latest add dropdown-menu` |
-| `table` | Employee list rendering | `npx shadcn@latest add table` |
+| Component | Purpose | Install |
+|---|---|---|
+| `input` | Text inputs | `npx shadcn@latest add input` |
+| `label` | Form labels | `npx shadcn@latest add label` |
+| `button` | Actions | `npx shadcn@latest add button` |
+| `card` | Page shell | `npx shadcn@latest add card` |
+| `table` | Employee list | `npx shadcn@latest add table` |
+| `dialog` | Confirmations | `npx shadcn@latest add dialog` |
+| `toast` / `sonner` | Feedback | `npx shadcn@latest add toast sonner` |
+| `skeleton` | Loading states | `npx shadcn@latest add skeleton` |
+| `dropdown-menu` | Row actions | `npx shadcn@latest add dropdown-menu` |
 
 ### Install order (create employee first)
-- Install in this order for the create flow:
-  1. `input`
-  2. `label`
-  3. `button`
-  4. `card`
-- Install `table` before building employee list pages
-- Install `dialog`, `toast`, `skeleton` for delete/loading/error UX after list/create form is stable
-
-### Recommended UI choices
-- Loading UI: keep it Bulletproof-style; if missing, prefer a small utility component in `src/features/employees/components/` before adding a new dependency
-- Skeleton loaders: build minimal wrappers around existing CSS tokens rather than adding a heavy library immediately
-- Empty state: plain conditional render first; replace with a shared component after the shape is stable
-- For delete confirmation: a small reusable confirm dialog in `src/lib/components/` if the component is generic enough
-
-### Done checklist
-- List renders seeded employees via existing API client
-- Create form updates list on success
-- Edit form pre-fills from fetched employee
-- Delete asks for confirmation, then removes from list
-- Route is protected for admin/manager per backend rules
-- No new lint or type errors
+1. `input`, `label`, `button`, `card`
+2. `table`
+3. `dialog`, `toast`, `skeleton`
 
 ## Gap 7 — Error UX / Polish
 ### Status
@@ -145,11 +127,8 @@ Done.
 
 ## Security Review — Helmet Baseline
 - `contentSecurityPolicy` is disabled in `security.middleware.ts`
-- This means there is **no CSP header** in responses right now
-- Reasons paused for now:
-  - Inline scripts/styles during active frontend work would be blocked by a strict policy
-  - Easier to enable CSP once the frontend build is static and assets are fingerprinted
-- Active protections from helmet that **are** in place (unless overridden elsewhere):
+- This is intentional; CSP is not planned for enablement at this stage
+- Helmet is already providing hardened baseline security headers:
   - `X-Content-Type-Options: nosniff`
   - `X-Frame-Options`
   - `Referrer-Policy`
