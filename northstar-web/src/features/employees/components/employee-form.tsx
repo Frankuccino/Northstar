@@ -8,7 +8,11 @@ import { Label } from "@/components/ui/label";
 import { createEmployeeSchema } from "../schemas/employee.schema";
 import type { CreateEmployeeInput } from "../types/employee.types";
 
-export const EmployeeForm = () => {
+type EmployeeFormProps = {
+  onSuccess: () => void;
+};
+
+export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
   const form = useForm<CreateEmployeeInput>({
     resolver: zodResolver(createEmployeeSchema),
     defaultValues: {
@@ -20,34 +24,100 @@ export const EmployeeForm = () => {
     },
   });
 
-  const onSubmit = (data: CreateEmployeeInput) => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = form;
+
+  const onSubmit = async (data: CreateEmployeeInput) => {
     console.log(data);
+
+    onSuccess?.();
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <Label htmlFor="firstName">First Name</Label>
-        <Input {...form.register("firstName")} id="firstName" />
-      </div>
-      <div>
-        <Label htmlFor="lastName">Last Name</Label>
-        <Input {...form.register("lastName")} id="lastName" />
-      </div>
-      <div>
-        <Label htmlFor="email">Email</Label>
-        <Input {...form.register("email")} id="email" />
-      </div>
-      <div>
-        <Label htmlFor="position">Position</Label>
-        <Input {...form.register("position")} id="position" />
-      </div>
-      <div>
-        <Label htmlFor="department">Department</Label>
-        <Input {...form.register("department")} id="department" />
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="firstName">First Name</Label>
+
+          <Input id="firstName" placeholder="John" {...register("firstName")} />
+
+          {errors.firstName && (
+            <p className="text-sm text-destructive">
+              {errors.firstName.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name</Label>
+
+          <Input id="lastName" placeholder="Doe" {...register("lastName")} />
+
+          {errors.lastName && (
+            <p className="text-sm text-destructive">
+              {errors.lastName.message}
+            </p>
+          )}
+        </div>
       </div>
 
-      <Button type="submit">Create Employee</Button>
+      <div className="space-y-2">
+        <Label htmlFor="email">Email Address</Label>
+
+        <Input
+          id="email"
+          type="email"
+          placeholder="john.doe@northstar.com"
+          {...register("email")}
+        />
+
+        {errors.email && (
+          <p className="text-sm text-destructive">{errors.email.message}</p>
+        )}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="position">Position</Label>
+
+          <Input
+            id="position"
+            placeholder="Software Engineer"
+            {...register("position")}
+          />
+
+          {errors.position && (
+            <p className="text-sm text-destructive">
+              {errors.position.message}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="department">Department</Label>
+
+          <Input
+            id="department"
+            placeholder="Engineering"
+            {...register("department")}
+          />
+
+          {errors.department && (
+            <p className="text-sm text-destructive">
+              {errors.department.message}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 border-t pt-4">
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Creating Employee..." : "Create Employee"}
+        </Button>
+      </div>
     </form>
   );
 };
