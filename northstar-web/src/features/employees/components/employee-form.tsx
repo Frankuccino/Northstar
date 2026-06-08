@@ -7,13 +7,21 @@ import { Label } from "@/components/ui/label";
 
 import { createEmployeeSchema } from "../schemas/employee.schema";
 import type { CreateEmployeeInput } from "../types/employee.types";
+import { useCreateEmployee } from "../hooks/use-create-employee";
 
 type EmployeeFormProps = {
   onSuccess: () => void;
 };
 
 export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
-  const form = useForm<CreateEmployeeInput>({
+  const createEmployeeMutation = useCreateEmployee();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<CreateEmployeeInput>({
     resolver: zodResolver(createEmployeeSchema),
     defaultValues: {
       firstName: "",
@@ -24,16 +32,11 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
     },
   });
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = form;
-
   const onSubmit = async (data: CreateEmployeeInput) => {
-    console.log(data);
+    createEmployeeMutation.mutate(data);
 
-    onSuccess?.();
+    reset();
+    onSuccess();
   };
 
   return (
@@ -114,7 +117,10 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
       </div>
 
       <div className="flex justify-end gap-2 border-t pt-4">
-        <Button type="submit" disabled={isSubmitting}>
+        <Button
+          type="submit"
+          disabled={isSubmitting || createEmployeeMutation.isPending}
+        >
           {isSubmitting ? "Creating Employee..." : "Create Employee"}
         </Button>
       </div>
