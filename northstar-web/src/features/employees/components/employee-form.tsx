@@ -33,10 +33,15 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
   });
 
   const onSubmit = async (data: CreateEmployeeInput) => {
-    createEmployeeMutation.mutate(data);
-
-    reset();
-    onSuccess();
+    createEmployeeMutation.mutate(data, {
+      onSuccess: () => {
+        reset();
+        onSuccess();
+      },
+      onError: (err) => {
+        console.error("Failed to create employe:", err);
+      },
+    });
   };
 
   return (
