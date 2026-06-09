@@ -1,4 +1,5 @@
 import { CreateEmployeeDialog } from "@/features/employees/components/create-employee-dialog";
+import { EmployeesTable } from "@/features/employees/components/employees-table";
 import { useEmployees } from "@/features/employees/hooks/use-employees";
 
 export const DashboardPage = () => {
@@ -18,11 +19,7 @@ export const DashboardPage = () => {
 
       <CreateEmployeeDialog />
 
-      {data?.map((employee) => (
-        <div key={employee.id}>
-          {employee.firstName} {employee.lastName}
-        </div>
-      ))}
+      <EmployeesTable employees={data ?? []} />
     </div>
   );
 };
