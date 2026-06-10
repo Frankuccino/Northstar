@@ -26,11 +26,15 @@ export const EmployeeRowActions = ({
 }: EmployeeRowActionsProps) => {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Button size="icon" variant="ghost">
-          <MoreHorizontal className="h-4 w-4" />
-          <span className="sr-only">Open actions</span>
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon" className="size-8">
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Open actions</span>
+          </Button>
+        }
+      >
+        Open actions
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end">

@@ -17,8 +17,8 @@ export const CreateEmployeeDialog = () => {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger>
-        <Button>Create Employee</Button>
+      <DialogTrigger render={<Button>Create Employee</Button>}>
+        Create Employee
       </DialogTrigger>
 
       <DialogContent>
