@@ -25,3 +25,9 @@ export const updateEmployee = async ({
 
   return response.data;
 };
+
+export const deleteEmployee = async (id: number): Promise<void> => {
+  const response = await api.delete(`/employees/${id}`);
+
+  return response.data;
+};

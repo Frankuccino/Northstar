@@ -4,6 +4,7 @@ import type { Employee } from "../types/employee";
 export const useEmployeeActions = () => {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
 
   const onEdit = (employee: Employee) => {
     setEditingEmployee(employee);
@@ -20,5 +21,7 @@ export const useEmployeeActions = () => {
     editOpen,
     onEdit,
     closeEdit,
+    deletingEmployee,
+    setDeletingEmployee,
   };
 };
