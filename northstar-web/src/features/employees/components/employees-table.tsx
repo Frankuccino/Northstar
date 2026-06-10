@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/table";
 import type { Employee } from "../types/employee";
 
+import { EmployeeRowActions } from "./employee-row-actions";
+
 type EmployeesTableProps = {
   employees: Employee[];
 };
@@ -21,16 +23,20 @@ export const EmployeesTable = ({ employees }: EmployeesTableProps) => {
           <TableHead>Last Name</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Position</TableHead>
+          <TableHead>Actions</TableHead>
         </TableRow>
       </TableHeader>
 
       <TableBody>
-        {employees?.map(({ id, firstName, lastName, email, position }) => (
-          <TableRow key={id}>
-            <TableCell>{firstName}</TableCell>
-            <TableCell>{lastName}</TableCell>
-            <TableCell>{email}</TableCell>
-            <TableCell>{position}</TableCell>
+        {employees?.map((employee) => (
+          <TableRow key={employee.id}>
+            <TableCell>{employee.firstName}</TableCell>
+            <TableCell>{employee.lastName}</TableCell>
+            <TableCell>{employee.email}</TableCell>
+            <TableCell>{employee.position}</TableCell>
+            <TableCell>
+              <EmployeeRowActions employee={employee} />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
