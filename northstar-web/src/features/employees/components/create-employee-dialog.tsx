@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -8,11 +7,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { EmployeeForm } from "./employee-form";
-
+import { useCreateEmployee } from "../hooks/use-create-employee";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export const CreateEmployeeDialog = () => {
   const [open, setOpen] = useState(false);
+  const createMutation = useCreateEmployee();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -28,7 +29,14 @@ export const CreateEmployeeDialog = () => {
           </DialogDescription>
         </DialogHeader>
 
-        <EmployeeForm onSuccess={() => setOpen(false)} />
+        <EmployeeForm
+          submitLabel="Create Employee"
+          onSubmit={(data) =>
+            createMutation.mutate(data, {
+              onSuccess: () => setOpen(false),
+            })
+          }
+        />
       </DialogContent>
     </Dialog>
   );

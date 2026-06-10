@@ -12,9 +12,10 @@ import { EmployeeRowActions } from "./employee-row-actions";
 
 type EmployeesTableProps = {
   employees: Employee[];
+  onEdit: (employee: Employee) => void;
 };
 
-export const EmployeesTable = ({ employees }: EmployeesTableProps) => {
+export const EmployeesTable = ({ employees, onEdit }: EmployeesTableProps) => {
   return (
     <Table>
       <TableHeader>
@@ -35,7 +36,7 @@ export const EmployeesTable = ({ employees }: EmployeesTableProps) => {
             <TableCell>{employee.email}</TableCell>
             <TableCell>{employee.position}</TableCell>
             <TableCell>
-              <EmployeeRowActions employee={employee} />
+              <EmployeeRowActions employee={employee} onEdit={onEdit} />
             </TableCell>
           </TableRow>
         ))}

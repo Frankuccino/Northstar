@@ -7,15 +7,14 @@ import { Label } from "@/components/ui/label";
 
 import { createEmployeeSchema } from "../schemas/employee.schema";
 import type { CreateEmployeeInput } from "../types/employee.types";
-import { useCreateEmployee } from "../hooks/use-create-employee";
 
 type EmployeeFormProps = {
-  onSuccess: () => void;
+  submitLabel?: string;
+  defaultValues?: Partial<CreateEmployeeInput>;
+  onSubmit: (data: CreateEmployeeInput) => void | Promise<void>;
 };
 
-export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
-  const createEmployeeMutation = useCreateEmployee();
-
+export const EmployeeForm = (props: EmployeeFormProps) => {
   const {
     register,
     handleSubmit,
@@ -23,7 +22,7 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
     formState: { errors, isSubmitting },
   } = useForm<CreateEmployeeInput>({
     resolver: zodResolver(createEmployeeSchema),
-    defaultValues: {
+    defaultValues: props.defaultValues ?? {
       firstName: "",
       lastName: "",
       email: "",
@@ -32,26 +31,17 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
     },
   });
 
-  const onSubmit = async (data: CreateEmployeeInput) => {
-    createEmployeeMutation.mutate(data, {
-      onSuccess: () => {
-        reset();
-        onSuccess();
-      },
-      onError: (err) => {
-        console.error("Failed to create employe:", err);
-      },
-    });
+  const submit = async (data: CreateEmployeeInput) => {
+    await props.onSubmit(data);
+    reset();
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(submit)} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="firstName">First Name</Label>
-
           <Input id="firstName" placeholder="John" {...register("firstName")} />
-
           {errors.firstName && (
             <p className="text-sm text-destructive">
               {errors.firstName.message}
@@ -61,9 +51,7 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
 
         <div className="space-y-2">
           <Label htmlFor="lastName">Last Name</Label>
-
           <Input id="lastName" placeholder="Doe" {...register("lastName")} />
-
           {errors.lastName && (
             <p className="text-sm text-destructive">
               {errors.lastName.message}
@@ -74,14 +62,12 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
 
       <div className="space-y-2">
         <Label htmlFor="email">Email Address</Label>
-
         <Input
           id="email"
           type="email"
           placeholder="john.doe@northstar.com"
           {...register("email")}
         />
-
         {errors.email && (
           <p className="text-sm text-destructive">{errors.email.message}</p>
         )}
@@ -90,13 +76,11 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="position">Position</Label>
-
           <Input
             id="position"
             placeholder="Software Engineer"
             {...register("position")}
           />
-
           {errors.position && (
             <p className="text-sm text-destructive">
               {errors.position.message}
@@ -106,13 +90,11 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
 
         <div className="space-y-2">
           <Label htmlFor="department">Department</Label>
-
           <Input
             id="department"
             placeholder="Engineering"
             {...register("department")}
           />
-
           {errors.department && (
             <p className="text-sm text-destructive">
               {errors.department.message}
@@ -122,11 +104,8 @@ export const EmployeeForm = ({ onSuccess }: EmployeeFormProps) => {
       </div>
 
       <div className="flex justify-end gap-2 border-t pt-4">
-        <Button
-          type="submit"
-          disabled={isSubmitting || createEmployeeMutation.isPending}
-        >
-          {isSubmitting ? "Creating Employee..." : "Create Employee"}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Saving..." : props.submitLabel ?? "Create Employee"}
         </Button>
       </div>
     </form>
