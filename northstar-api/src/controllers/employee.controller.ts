@@ -59,7 +59,7 @@ export const deleteEmployee = async (req: Request, res: Response) => {
     const deleted = await employeeService.remove(Number(id));
     if (!deleted) {
       return res.status(404).json({
-        messag: "Employee not found",
+        message: "Employee not found",
       });
     }
 
