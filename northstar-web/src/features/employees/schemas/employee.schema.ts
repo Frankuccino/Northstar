@@ -7,3 +7,5 @@ export const createEmployeeSchema = z.object({
   position: z.string().min(1),
   department: z.string().min(1),
 });
+
+export const updateEmployeeSchema = createEmployeeSchema.partial();
