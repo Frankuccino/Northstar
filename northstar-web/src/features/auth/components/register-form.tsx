@@ -6,6 +6,10 @@ import { registerSchema } from "../schemas/register-schema";
 import type { RegisterPayload } from "../types/auth";
 
 import { useRegister } from "../hooks/use-register";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { AuthLink } from "./auth-link";
 
 const RegisterForm = () => {
   const navigate = useNavigate();
@@ -26,9 +30,13 @@ const RegisterForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div>
-        <input
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-4 flex flex-col gap-2"
+    >
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="name">Name</Label>
+        <Input
           {...register("name")}
           className="border p-2 w-full"
           type="text"
@@ -38,8 +46,10 @@ const RegisterForm = () => {
           <p className="text-red-500 text-sm">{errors.name.message}</p>
         )}
       </div>
-      <div>
-        <input
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
           {...register("email")}
           className="border p-2 w-full"
           type="text"
@@ -49,8 +59,10 @@ const RegisterForm = () => {
           <p className="text-red-500 text-sm">{errors.email.message}</p>
         )}
       </div>
-      <div>
-        <input
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
           {...register("password")}
           className="border p-2 w-full"
           type="password"
@@ -60,13 +72,14 @@ const RegisterForm = () => {
           <p className="text-red-500 text-sm">{errors.password.message}</p>
         )}
       </div>
-      <button
+      <Button
         disabled={registerMutation.isPending}
-        className="bg-black text-white px-4 py-2 w-full"
+        className="px-4 py-2 w-full mt-2"
         type="submit"
       >
         Submit
-      </button>
+      </Button>
+      <AuthLink text="Already have an account?" linkText="Login" to="/login" />
     </form>
   );
 };
