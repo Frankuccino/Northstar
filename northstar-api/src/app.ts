@@ -4,15 +4,15 @@ import express from "express";
 import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 
-import { securityHeaders } from "./middleware/security.middleware.js";
-import { corsOptions } from "./middleware/cors.middleware.js";
 import { rateLimiter } from "./middleware/rate-limit.middleware.js";
+import { corsOptions } from "./middleware/cors.middleware.js";
+import { securityHeaders } from "./middleware/security.middleware.js";
 
 const app = express();
 
-app.use(securityHeaders);
-app.use(corsOptions);
 app.use(rateLimiter);
+app.use(corsOptions);
+app.use(securityHeaders);
 
 app.use(express.json());
 
