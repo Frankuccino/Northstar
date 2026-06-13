@@ -6,6 +6,8 @@
   "scripts": {
     "test": "SKIP_RATE_LIMIT=true vitest",
     "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:seed": "tsx src/db/seed.ts",
