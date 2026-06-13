@@ -10,9 +10,11 @@ import { securityHeaders } from "./middleware/security.middleware.js";
 
 const app = express();
 
-app.use(rateLimiter);
 app.use(corsOptions);
+
 app.use(securityHeaders);
+
+app.use(rateLimiter);
 
 app.use(express.json());
 
