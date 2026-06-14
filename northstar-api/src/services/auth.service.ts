@@ -5,6 +5,7 @@ import { db } from "../db/index.js";
 import { users } from "../db/schema.js";
 
 import { eq } from "drizzle-orm";
+import { toSafeUser } from "../lib/to-safe-user.js";
 
 export const register = async (
   email: string,
@@ -51,7 +52,7 @@ export const login = async (email: string, password: string) => {
   );
 
   return {
-    user,
+    user: toSafeUser(user),
     token,
   };
 };
