@@ -10,6 +10,8 @@ import { securityHeaders } from "./middleware/security.middleware.js";
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(corsOptions);
 
 app.use(securityHeaders);
