@@ -14,26 +14,32 @@ export const getEmployeeColumns = ({
   {
     accessorKey: "firstName",
     header: "First Name",
+    enableSorting: true,
   },
   {
     accessorKey: "lastName",
     header: "Last Name",
+    enableSorting: true,
   },
   {
     accessorKey: "email",
     header: "Email",
+    enableSorting: true,
   },
   {
     accessorKey: "position",
     header: "Position",
+    enableSorting: true,
   },
   {
     accessorKey: "department",
     header: "Department",
+    enableSorting: true,
   },
   {
     id: "actions",
     header: "Actions",
+    enableSorting: false,
     cell: ({ row }) => (
       <EmployeeRowActions
         employee={row.original}
