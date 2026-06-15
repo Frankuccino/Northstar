@@ -8,7 +8,12 @@ import {
 } from "@/components/ui/table";
 import type { Employee } from "../types/employee";
 
-import { EmployeeRowActions } from "./employee-row-actions";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import { getEmployeeColumns } from "./employee-columns";
 
 type EmployeesTableProps = {
   employees: Employee[];
@@ -16,32 +21,47 @@ type EmployeesTableProps = {
   onDelete: (employee: Employee) => void;
 };
 
-export const EmployeesTable = ({ employees, onEdit, onDelete }: EmployeesTableProps) => {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>First Name</TableHead>
-          <TableHead>Last Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Position</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
+export const EmployeesTable = ({
+  employees,
+  onEdit,
+  onDelete,
+}: EmployeesTableProps) => {
+  const table = useReactTable({
+    data: employees,
+    columns: getEmployeeColumns({ onEdit, onDelete }),
+    getCoreRowModel: getCoreRowModel(),
+  });
 
-      <TableBody>
-        {employees?.map((employee) => (
-          <TableRow key={employee.id}>
-            <TableCell>{employee.firstName}</TableCell>
-            <TableCell>{employee.lastName}</TableCell>
-            <TableCell>{employee.email}</TableCell>
-            <TableCell>{employee.position}</TableCell>
-            <TableCell>
-              <EmployeeRowActions employee={employee} onEdit={onEdit} onDelete={onDelete} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+  return (
+    <>
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {flexRender(
+                    header.column.columnDef.header,
+                    header.getContext(),
+                  )}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id}>
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id}>
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </>
   );
 };
