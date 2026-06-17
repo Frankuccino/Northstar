@@ -3,6 +3,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   type SortingState,
 } from "@tanstack/react-table";
 import { useState } from "react";
@@ -19,24 +20,28 @@ type Params = {
 export const useEmployeesTable = ({ employees, onEdit, onDelete }: Params) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
   const table = useReactTable({
     data: employees,
     columns: getEmployeeColumns({ onEdit, onDelete }),
-
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
 
     globalFilterFn: "includesString",
 
     state: {
       sorting,
       globalFilter,
+      pagination,
     },
 
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
+
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
   return {
