@@ -21,6 +21,7 @@ export const useEmployeesTable = ({ employees, onEdit, onDelete }: Params) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [rowSelection, setRowSelection] = useState({});
 
   const table = useReactTable({
     data: employees,
@@ -32,11 +33,13 @@ export const useEmployeesTable = ({ employees, onEdit, onDelete }: Params) => {
       sorting,
       globalFilter,
       pagination,
+      rowSelection,
     },
 
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
+    onRowSelectionChange: setRowSelection,
 
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
