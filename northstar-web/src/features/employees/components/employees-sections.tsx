@@ -5,7 +5,8 @@ import { ConfirmDeleteDialog } from "./confirm-delete-dialog";
 import { CreateEmployeeDialog } from "./create-employee-dialog";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
 import { EmployeesTable } from "./employees-table";
-import { EmployeesToolbar } from "./employees-toolbar";
+import { EmployeesSearchbar } from "./employees-searchbar";
+import { DataTablePagination } from "@/components/ui/data-table-pagination";
 
 export const EmployeesSection = () => {
   const { data, isLoading, error } = useEmployees();
@@ -33,15 +34,19 @@ export const EmployeesSection = () => {
   }
 
   return (
-    <div>
-      <CreateEmployeeDialog />
+    <div className="flex flex-col gap-4">
+      <div className="">
+        <CreateEmployeeDialog />
+      </div>
 
-      <EmployeesToolbar
+      <EmployeesSearchbar
         globalFilter={globalFilter}
         onGlobalFilterChange={setGlobalFilter}
       />
 
       <EmployeesTable table={table} />
+
+      <DataTablePagination table={table} />
 
       <EditEmployeeDialog
         open={editOpen}

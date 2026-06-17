@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { Employee } from "../types/employee";
 import { EmployeeRowActions } from "./employee-row-actions";
+import { SelectionCell, SelectionHeader } from "./selection-checkbox";
 
 type Props = {
   onEdit: (employee: Employee) => void;
@@ -11,6 +12,13 @@ export const getEmployeeColumns = ({
   onEdit,
   onDelete,
 }: Props): ColumnDef<Employee>[] => [
+  {
+    id: "select",
+    header: ({ table }) => <SelectionHeader table={table} />,
+    cell: ({ row }) => <SelectionCell row={row} />,
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     accessorKey: "firstName",
     header: "First Name",
