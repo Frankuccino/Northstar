@@ -1,4 +1,4 @@
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable } from "@/components/data-table";
 import type { Table } from "@tanstack/react-table";
 import type { Employee } from "../types/employee";
 

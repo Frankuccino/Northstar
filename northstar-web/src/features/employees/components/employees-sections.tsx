@@ -6,7 +6,8 @@ import { CreateEmployeeDialog } from "./create-employee-dialog";
 import { EditEmployeeDialog } from "./edit-employee-dialog";
 import { EmployeesTable } from "./employees-table";
 import { EmployeesSearchbar } from "./employees-searchbar";
-import { DataTablePagination } from "@/components/ui/data-table-pagination";
+import { DataTablePagination } from "@/components/data-table-pagination";
+import { DataTableColumnVisibility } from "@/components/data-table-column-visibility";
 
 export const EmployeesSection = () => {
   const { data, isLoading, error } = useEmployees();
@@ -34,20 +35,29 @@ export const EmployeesSection = () => {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="">
+    <div className="flex flex-col gap-4 px-2 mx-2">
+      {/* Toolbar: Grouping controls horizontally */}
+      <div className="flex items-center justify-between">
+        {/* Action Header */}
         <CreateEmployeeDialog />
+
+        <div className="w-2xl">
+          <EmployeesSearchbar
+            globalFilter={globalFilter}
+            onGlobalFilterChange={setGlobalFilter}
+          />
+        </div>
+        <DataTableColumnVisibility table={table} />
+      </div>
+      {/* Table Area */}
+      <div className="rounded-md border">
+        <EmployeesTable table={table} />
       </div>
 
-      <EmployeesSearchbar
-        globalFilter={globalFilter}
-        onGlobalFilterChange={setGlobalFilter}
-      />
-
-      <EmployeesTable table={table} />
-
+      {/* Pagination Area */}
       <DataTablePagination table={table} />
 
+      {/* Dialogs remain outside the layout flow */}
       <EditEmployeeDialog
         open={editOpen}
         employee={editingEmployee}
