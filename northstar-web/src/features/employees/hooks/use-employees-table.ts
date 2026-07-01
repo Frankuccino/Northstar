@@ -6,7 +6,7 @@ import {
   getPaginationRowModel,
   type SortingState,
 } from "@tanstack/react-table";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Employee } from "../types/employee";
 import { getEmployeeColumns } from "../components/employee-columns";
@@ -17,12 +17,25 @@ type Params = {
   onDelete: (employee: Employee) => void;
 };
 
+const COLUMN_VISIBILITY_STORAGE_KEY = "employees-column-visibility";
+
 export const useEmployeesTable = ({ employees, onEdit, onDelete }: Params) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
-  const [columnVisibility, setColumnVisibility] = useState({});
+  const [columnVisibility, setColumnVisibility] = useState(() => {
+    const saved = localStorage.getItem(COLUMN_VISIBILITY_STORAGE_KEY);
+
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem(
+      COLUMN_VISIBILITY_STORAGE_KEY,
+      JSON.stringify(columnVisibility),
+    );
+  }, [columnVisibility]);
 
   const table = useReactTable({
     data: employees,
