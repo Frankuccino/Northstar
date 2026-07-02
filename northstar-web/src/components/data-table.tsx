@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 interface DataTableProps<TData> {
   table: ReactTable<TData>;
@@ -16,17 +17,41 @@ interface DataTableProps<TData> {
 export function DataTable<TData>({ table }: DataTableProps<TData>) {
   return (
     <Table>
-      <TableHeader>
+      <TableHeader className="bg-muted/50">
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id}>
-                {header.isPlaceholder
-                  ? null
-                  : flexRender(
+              <TableHead
+                key={header.id}
+                onClick={
+                  header.column.getCanSort()
+                    ? header.column.getToggleSortingHandler()
+                    : undefined
+                }
+                className={
+                  header.column.getCanSort() ? "cursor-pointer select-none" : ""
+                }
+              >
+                {header.isPlaceholder ? null : (
+                  <div className="flex items-center gap-2">
+                    {flexRender(
                       header.column.columnDef.header,
                       header.getContext(),
                     )}
+
+                    {header.column.getCanSort() && (
+                      <>
+                        {header.column.getIsSorted() === "asc" ? (
+                          <ArrowUp className="h-4 w-4" />
+                        ) : header.column.getIsSorted() === "desc" ? (
+                          <ArrowDown className="h-4 w-4" />
+                        ) : (
+                          <ArrowUpDown className="h-4 w-4" />
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </TableHead>
             ))}
           </TableRow>
