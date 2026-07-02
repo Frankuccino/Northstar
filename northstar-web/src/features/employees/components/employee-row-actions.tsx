@@ -28,7 +28,7 @@ export const EmployeeRowActions = ({
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="icon" className="size-8">
+          <Button variant="ghost" size="icon" className="size-7">
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Open actions</span>
           </Button>
