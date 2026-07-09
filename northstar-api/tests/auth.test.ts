@@ -10,7 +10,10 @@ const TEST_PASSWORD = "password123";
 const TEST_NAME = "Auth Test";
 
 async function cleanup() {
-  await db.delete(users).where(eq(users.email, TEST_EMAIL)).catch(() => {});
+  await db
+    .delete(users)
+    .where(eq(users.email, TEST_EMAIL))
+    .catch(() => {});
 }
 
 describe("POST /auth/register", () => {

@@ -1,7 +1,9 @@
-import type { InferInsertModel } from "drizzle-orm";
+import "dotenv/config";
+import { sql, type InferInsertModel } from "drizzle-orm";
 import { db } from "./index.js";
 import { employees, users } from "./schema.js";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 type SeedUser = {
   email: string;
@@ -217,23 +219,53 @@ function buildEmployees(): SeedEmployee[] {
 }
 
 async function seed() {
-  const hashed = await bcrypt.hash("password123", 10);
+  console.log("🗑️ Clearing existing database tables...");
 
+  // 1. Delete dependent child data first to prevent foreign key constraint errors
+  await db.delete(employees);
+  await db.delete(users);
+
+  // 2. Optional: Reset the auto-incrementing serial IDs back to 1
+  // Drizzle requires raw SQL for sequence resetting because it varies by database engine
+  await db.execute(sql`ALTER SEQUENCE users_id_seq RESTART WITH 1;`);
+  await db.execute(sql`ALTER SEQUENCE employees_id_seq RESTART WITH 1;`);
+
+  const pepper = process.env.PASSWORD_PEPPER;
+  if (!pepper) {
+    throw new Error("Server configuration error: Pepper missing for seeding.");
+  }
+
+  console.log("🌱 Database wiped. Starting fresh unique salting...");
+
+  // 3. Run bcrypt independently for every user inside a Promise.all block
+  const usersWithUniqueHashes = await Promise.all(
+    usersToSeed.map(async (user) => {
+      const preHashedInput = crypto
+        .createHash("sha256")
+        .update("password123" + pepper)
+        .digest("hex");
+
+      const hashedPassword = await bcrypt.hash(preHashedInput, 10); // Generates a fresh salt every loop iteration
+      return {
+        email: user.email,
+        name: user.name,
+        password: hashedPassword,
+        role: user.role,
+      };
+    }),
+  );
+
+  // 4. Insert the uniquely salted payloads into the database
   const insertedUsers = await db
     .insert(users)
-    .values(
-      usersToSeed.map(({ email, name, role }) => ({
-        email,
-        name,
-        password: hashed,
-        role,
-      })),
-    )
+    .values(usersWithUniqueHashes)
     .onConflictDoNothing()
     .returning();
 
   const seededUsers = insertedUsers;
-  const emailToUserId = new Map(seededUsers.map((u: typeof users.$inferSelect) => [u.email, u.id]));
+  const emailToUserId = new Map(
+    seededUsers.map((u: typeof users.$inferSelect) => [u.email, u.id]),
+  );
   const fallbackUserId = seededUsers[0]?.id ?? null;
 
   if (!fallbackUserId) {
