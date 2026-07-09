@@ -241,9 +241,9 @@ async function seed() {
   const usersWithUniqueHashes = await Promise.all(
     usersToSeed.map(async (user) => {
       const preHashedInput = crypto
-        .createHash("sha256")
-        .update("password123" + pepper)
-        .digest("hex");
+        .createHmac("sha256", pepper)
+        .update("password123")
+        .digest();
 
       const hashedPassword = await bcrypt.hash(preHashedInput, 10); // Generates a fresh salt every loop iteration
       return {
