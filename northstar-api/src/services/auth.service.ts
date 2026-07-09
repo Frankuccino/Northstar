@@ -1,4 +1,6 @@
+import "dotenv/config";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import { db } from "../db/index.js";
@@ -12,13 +14,24 @@ export const register = async (
   password: string,
   name: string,
 ) => {
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const pepper = process.env.PASSWORD_PEPPER;
+  if (!pepper) {
+    throw new Error("Server configuration error: Pepper missing.");
+  }
+
+  const preHashedInput = crypto
+    .createHmac("sha256", pepper)
+    .update(password)
+    .digest();
+
+  const hashedPassword = await bcrypt.hash(preHashedInput, 10);
 
   const [user] = await db
     .insert(users)
     .values({
       email,
       password: hashedPassword,
+      passwordVersion: 2,
       name,
     })
     .returning();
@@ -33,7 +46,52 @@ export const login = async (email: string, password: string) => {
     throw new Error("Invalid credentials");
   }
 
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const pepper = process.env.PASSWORD_PEPPER;
+  if (!pepper) {
+    throw new Error("Server configuration error: Pepper missing!");
+  }
+
+  let isPasswordValid = false;
+  let activeUser = user;
+
+  // Lazy Migration for old password versions
+  if (user.passwordVersion === 1) {
+    isPasswordValid = await bcrypt.compare(password, user.password);
+
+    // if their password matches, seamlessly migrate them to the new pipeline on-the-fly
+    if (isPasswordValid) {
+      const hmacDigest = crypto
+        .createHmac("sha256", pepper)
+        .update(password)
+        .digest();
+
+      const hashedPassword = await bcrypt.hash(hmacDigest, 10);
+
+      // Overwrite old hash in the database and advance their flag to version 2
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          password: hashedPassword,
+          passwordVersion: 2,
+        })
+        .where(eq(users.id, user.id))
+        .returning();
+
+      activeUser = updatedUser;
+
+      console.log(
+        `Seamlessly migrated ${user.email} to HMAC-SHA256 + Bcrypt security tier`,
+      );
+    }
+  } else if (user.passwordVersion === 2) {
+    // Generate the matching HMAC fingerprint first
+    const hmacDigest = crypto
+      .createHmac("sha256", pepper)
+      .update(password)
+      .digest();
+
+    isPasswordValid = await bcrypt.compare(hmacDigest, user.password);
+  }
 
   if (!isPasswordValid) {
     throw new Error("Invalid credentials");
@@ -41,9 +99,9 @@ export const login = async (email: string, password: string) => {
 
   const token = jwt.sign(
     {
-      id: user.id,
-      email: user.email,
-      role: user.role,
+      id: activeUser.id,
+      email: activeUser.email,
+      role: activeUser.role,
     },
     process.env.JWT_SECRET!,
     {
@@ -52,7 +110,7 @@ export const login = async (email: string, password: string) => {
   );
 
   return {
-    user: toSafeUser(user),
+    user: toSafeUser(activeUser),
     token,
   };
 };
