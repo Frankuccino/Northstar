@@ -239,7 +239,18 @@ async function seed() {
 
   // 3. Run bcrypt independently for every user inside a Promise.all block
   const usersWithUniqueHashes = await Promise.all(
-    usersToSeed.map(async (user) => {
+    usersToSeed.map(async (user, index) => {
+      if (index === 0) {
+        const legacyHashedPassword = await bcrypt.hash("password123", 10);
+        return {
+          email: user.email,
+          name: user.name,
+          password: legacyHashedPassword,
+          passwordVersion: 1,
+          role: user.role,
+        };
+      }
+
       const preHashedInput = crypto
         .createHmac("sha256", pepper)
         .update("password123")
@@ -250,6 +261,7 @@ async function seed() {
         email: user.email,
         name: user.name,
         password: hashedPassword,
+        passwordVersion: 2,
         role: user.role,
       };
     }),
