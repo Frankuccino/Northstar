@@ -54,9 +54,9 @@ export const login = async (email: string, password: string) => {
   let isPasswordValid = false;
   let activeUser = user;
 
-  const userPasswordVerion = Number(user.passwordVersion);
+  const userPasswordVersion = Number(user.passwordVersion);
   // Lazy Migration for old password versions
-  if (userPasswordVerion === 1) {
+  if (userPasswordVersion === 1) {
     isPasswordValid = await bcrypt.compare(password, user.password);
 
     // if their password matches, seamlessly migrate them to the new pipeline on-the-fly
@@ -84,7 +84,7 @@ export const login = async (email: string, password: string) => {
         `Seamlessly migrated ${user.email} to HMAC-SHA256 + Bcrypt security tier`,
       );
     }
-  } else if (userPasswordVerion === 2) {
+  } else if (userPasswordVersion === 2) {
     // Generate the matching HMAC fingerprint first
     const hmacDigest = crypto
       .createHmac("sha256", pepper)
