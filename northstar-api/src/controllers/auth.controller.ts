@@ -1,6 +1,6 @@
 // Register Controller | Login Controller | Me Controller (protected route)
 import { login, register } from "../services/auth.service.js";
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 
 export const registerController = async (req: Request, res: Response) => {
   try {
