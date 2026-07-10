@@ -8,6 +8,7 @@ import { users } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { toSafeUser } from "../lib/to-safe-user.js";
 import { hashPassword, verifyPassword } from "../lib/auth.js";
+import { migrateUserPassword } from "./auth-migration.service.js";
 
 export const register = async (
   email: string,
@@ -40,29 +41,13 @@ export const login = async (email: string, password: string) => {
   let activeUser = user;
 
   const userPasswordVersion = Number(user.passwordVersion);
-  // Lazy Migration for old password versions
+
+  // Lazy migration for v1 password hash to v2: old password matching pipeline
   if (userPasswordVersion === 1) {
     isPasswordValid = await bcrypt.compare(password, user.password);
-
-    // if their password matches, seamlessly migrate them to the new pipeline on-the-fly
+    // password match with the old pipeline -> migrate them to new pipeline on the fly.
     if (isPasswordValid) {
-      const hashedPassword = await hashPassword(password);
-
-      // Overwrite old hash in the database and advance their flag to version 2
-      const [updatedUser] = await db
-        .update(users)
-        .set({
-          password: hashedPassword,
-          passwordVersion: 2,
-        })
-        .where(eq(users.id, user.id))
-        .returning();
-
-      activeUser = updatedUser;
-
-      console.log(
-        `Seamlessly migrated ${user.email} to HMAC-SHA256 + Bcrypt security tier`,
-      );
+      activeUser = await migrateUserPassword(user, password);
     }
   } else if (userPasswordVersion === 2) {
     isPasswordValid = await verifyPassword(password, user.password);
