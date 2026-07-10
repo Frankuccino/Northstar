@@ -1,6 +1,5 @@
 import "dotenv/config";
 import bcrypt from "bcrypt";
-import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import { db } from "../db/index.js";
@@ -8,23 +7,14 @@ import { users } from "../db/schema.js";
 
 import { eq } from "drizzle-orm";
 import { toSafeUser } from "../lib/to-safe-user.js";
+import { hashPassword, verifyPassword } from "../lib/auth.js";
 
 export const register = async (
   email: string,
   password: string,
   name: string,
 ) => {
-  const pepper = process.env.PASSWORD_PEPPER;
-  if (!pepper) {
-    throw new Error("Server configuration error: Pepper missing.");
-  }
-
-  const preHashedInput = crypto
-    .createHmac("sha256", pepper)
-    .update(password)
-    .digest();
-
-  const hashedPassword = await bcrypt.hash(preHashedInput, 10);
+  const hashedPassword = await hashPassword(password);
 
   const [user] = await db
     .insert(users)
@@ -46,11 +36,6 @@ export const login = async (email: string, password: string) => {
     throw new Error("Invalid credentials");
   }
 
-  const pepper = process.env.PASSWORD_PEPPER;
-  if (!pepper) {
-    throw new Error("Server configuration error: Pepper missing!");
-  }
-
   let isPasswordValid = false;
   let activeUser = user;
 
@@ -61,12 +46,7 @@ export const login = async (email: string, password: string) => {
 
     // if their password matches, seamlessly migrate them to the new pipeline on-the-fly
     if (isPasswordValid) {
-      const hmacDigest = crypto
-        .createHmac("sha256", pepper)
-        .update(password)
-        .digest();
-
-      const hashedPassword = await bcrypt.hash(hmacDigest, 10);
+      const hashedPassword = await hashPassword(password);
 
       // Overwrite old hash in the database and advance their flag to version 2
       const [updatedUser] = await db
@@ -85,13 +65,7 @@ export const login = async (email: string, password: string) => {
       );
     }
   } else if (userPasswordVersion === 2) {
-    // Generate the matching HMAC fingerprint first
-    const hmacDigest = crypto
-      .createHmac("sha256", pepper)
-      .update(password)
-      .digest();
-
-    isPasswordValid = await bcrypt.compare(hmacDigest, user.password);
+    isPasswordValid = await verifyPassword(password, user.password);
   }
 
   if (!isPasswordValid) {
