@@ -11,11 +11,15 @@ export const ProtectedRoute = () => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // FIX: Cast to JwtPayload so TypeScript knows 'exp' exist
-  const payload = jwtDecode<JwtPayload>(token);
-  if (payload.exp && payload.exp * 1000 < Date.now()) {
+  try {
+    const payload = jwtDecode<JwtPayload>(token);
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      clearToken();
+      return <Navigate to="/login" replace />;
+    }
+  } catch (error) {
     clearToken();
-    return <Navigate to="/login" replace />;
+    return <Navigate to="login" replace />;
   }
 
   return <Outlet />;
