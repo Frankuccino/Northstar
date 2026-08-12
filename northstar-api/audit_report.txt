@@ -1,0 +1,24 @@
+--- 1. HARDCODED SECRETS AUDIT ---
+
+--- 2. ENVIRONMENT VARIABLES MAP & UNIQUE NAMES ---
+./drizzle.config.ts:9:        url: process.env.DATABASE_URL!,
+./src/middleware/cors.middleware.ts:4:  origin: process.env.CLIENT_URL,
+./src/middleware/auth.middleware.ts:25:    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload;
+./src/middleware/rate-limit.middleware.ts:7:  skip: () => process.env.SKIP_RATE_LIMIT === "true",
+./src/lib/auth.ts:5:  const PEPPER = process.env.PASSWORD_PEPPER;
+./src/db/seed.ts:233:  const pepper = process.env.PASSWORD_PEPPER;
+./src/db/index.ts:6:const sql = postgres(process.env.DATABASE_URL!);
+./src/index.ts:3:const PORT = process.env.PORT || 3000;
+./src/services/auth.service.ts:66:    process.env.JWT_SECRET!,
+
+--- UNIQUE ENVIRONMENT VARIABLES ---
+CLIENT_URL
+DATABASE_URL
+JWT_SECRET
+PASSWORD_PEPPER
+PORT
+SKIP_RATE_LIMIT
+
+--- 3. HARDCODED ENVIRONMENT FALLBACKS ---
+
+--- 4. HISTORICAL GIT COMMIT LEAKS ---
