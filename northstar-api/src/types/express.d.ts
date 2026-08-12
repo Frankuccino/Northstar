@@ -2,9 +2,9 @@
 import { JwtPayload } from "jsonwebtoken";
 
 export interface AuthPayload extends JwtPayload {
-  id: string;
+  id: number;
   email: string;
-  role: "admin" | "user";
+  role: string;
 }
 
 declare global {
