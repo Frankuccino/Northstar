@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { verifyAccessToken } from "../lib/tokens.js";
 import { AuthPayload } from "../types/express.js";
 
 export const authenticate = (
@@ -22,7 +22,7 @@ export const authenticate = (
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthPayload;
+    const decoded = verifyAccessToken(token) as AuthPayload;
     req.user = decoded;
 
     next();

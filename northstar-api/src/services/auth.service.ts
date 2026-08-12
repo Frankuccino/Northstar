@@ -9,6 +9,8 @@ import { eq } from "drizzle-orm";
 import { toSafeUser } from "../lib/to-safe-user.js";
 import { hashPassword, verifyPassword } from "../lib/auth.js";
 import { migrateUserPassword } from "./auth-migration.service.js";
+import { signAccessToken } from "../lib/tokens.js";
+import { issueRefreshToken } from "./refresh-tokens.service.js";
 
 export const register = async (
   email: string,
@@ -57,20 +59,26 @@ export const login = async (email: string, password: string) => {
     throw new Error("Invalid credentials");
   }
 
-  const token = jwt.sign(
-    {
-      id: activeUser.id,
-      email: activeUser.email,
-      role: activeUser.role,
-    },
-    process.env.JWT_SECRET!,
-    {
-      expiresIn: "1d",
-    },
-  );
+  const accessToken = signAccessToken({
+    id: activeUser.id,
+    email: activeUser.email,
+    role: activeUser.role ?? "employee",
+  });
+
+  // Stateless access token (15m) + server-side refresh token (httpOnly cookie).
+  const { raw: refreshToken } = await issueRefreshToken(activeUser.id);
 
   return {
     user: toSafeUser(activeUser),
-    token,
+    accessToken,
+    refreshToken,
   };
+};
+
+export const getMe = async (id: number) => {
+  const [user] = await db.select().from(users).where(eq(users.id, id));
+  if (!user) {
+    throw new Error("User not found");
+  }
+  return toSafeUser(user);
 };
