@@ -34,43 +34,24 @@ Done.
 
 ## Gap 6 — Web Employee Pages
 ### Status
-In progress (frontend owner-led, review by mentor).
+Done for dashboard CRUD. Route extraction to `/employees` deferred.
 
-### Deliverables
-1. `northstar-web/src/features/employees/pages/employees-page.tsx`
-2. `northstar-web/src/features/employees/pages/employee-form-page.tsx`
-3. Delete confirmation UI
-4. Error/loading UI and empty state
-5. Protected route for `/employees`
+### Completed deliverables
+- Shared `EmployeeForm` used by both create and edit flows
+- `CreateEmployeeDialog` — self-contained dialog with Base UI trigger composition
+- `EditEmployeeDialog` — controlled dialog driven by lifted state in `useEmployeeActions`
+- `EmployeesTable` with `onEdit` and `onDelete` forwarding
+- `EmployeeRowActions` dropdown menu (View / Edit / Delete)
+- `ConfirmDeleteDialog` with React Query mutation and cache invalidation
+- Delete flow wired: `useDeleteEmployee` + `employeeKeys.all` invalidation
+- Build and type-check clean after fixing:
+  - Base UI nested-button hydration errors in dialog and dropdown triggers (`render={...}` pattern)
+  - TS 6.0 tsconfig issues (`baseUrl` deprecation silenced via `ignoreDeprecations: "6.0"`, invalid `exclude` removed from project references root config)
 
-### Route shape to match
-```
-/employees               (list / create)
-/employees/:id           (view / edit)
-```
-
-### Existing frontend pieces to reuse
-- `src/features/employees/api/employees.api.ts`
-- `src/features/employees/hooks/use-employees.ts`
-- `src/features/employees/types/employee.ts`
-
-### shadcn components
-| Component | Purpose | Install |
-|---|---|---|
-| `input` | Text inputs | `npx shadcn@latest add input` |
-| `label` | Form labels | `npx shadcn@latest add label` |
-| `button` | Actions | `npx shadcn@latest add button` |
-| `card` | Page shell | `npx shadcn@latest add card` |
-| `table` | Employee list | `npx shadcn@latest add table` |
-| `dialog` | Confirmations | `npx shadcn@latest add dialog` |
-| `toast` / `sonner` | Feedback | `npx shadcn@latest add toast sonner` |
-| `skeleton` | Loading states | `npx shadcn@latest add skeleton` |
-| `dropdown-menu` | Row actions | `npx shadcn@latest add dropdown-menu` |
-
-### Install order (create employee first)
-1. `input`, `label`, `button`, `card`
-2. `table`
-3. `dialog`, `toast`, `skeleton`
+### Remaining / deferred
+- Empty state when `data` is empty
+- Loading skeleton while `isLoading` is true
+- Protected route wrapper for `/employees` if that route is extracted later
 
 ## Gap 7 — Error UX / Polish
 ### Status
@@ -90,10 +71,8 @@ Do not add a UI feedback library yet. Start with a small `src/lib/toast.tsx` wra
 Done.
 
 ## Execution Order
-1. ~~Gap 8~~ (done)
-2. ~~Gap 5~~ (done)
-3. Gap 6 — Web Employee Pages
-4. Gap 7 — Error UX / Polish
+1. Register form confirm password validation
+2. Toasts / shared error UX
 
 ## Current Application State (as of current session)
 - Backend API: `northstar-api`
@@ -108,15 +87,17 @@ Done.
     - Rate-limit import aliased to avoid TS name collision (`rateLimit as rateLimiter`)
   - Test cleanup hardened: `cleanup()` now deletes test employees by constant email list (`VALID_EMPLOYEE.email`, `relation.employee@example.com`, `MANAGER_EMAIL`) instead of hardcoded strings, keeping test data fully driven by constants
 - Frontend: `northstar-web`
-  - Auth pages: login, register, protected/public route wrappers
+  - Auth pages: login + register UI complete
+    - Register now includes confirm password input and label
+    - Confirm password validation pending in `RegisterForm`
   - Dashboard page + dashboard layout present
-  - Employee pages: **in progress**
-  - Employee API client, hooks, and types scaffolded
+  - Employee pages: dashboard CRUD complete, route extraction deferred
+  - Employee API client, hooks, and types in use
 
 ## Consolidated Current State
 - Backend: employee CRUD + auth stable and tested
-- Frontend: auth scaffold complete, employee UI being built next
-- Frontend owner should prepare: route structure, reuse existing employee client/hooks/types, start minimal with conditional UI for empty/loading/error states
+- Frontend: auth UI complete, dashboard employee CRUD complete
+- Frontend next: confirm password validation in `RegisterForm`, then toast/error UX
 
 ## Backend Notes
 - `package.json` `test` script was changed from `vitest` to `SKIP_RATE_LIMIT=true vitest`
