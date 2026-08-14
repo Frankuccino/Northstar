@@ -4,8 +4,10 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AuthLayout } from "../layouts/auth-layout";
 import { PublicRoute } from "../public-route";
 import { ProtectedRoute } from "../protected-route";
-import { DashboardLayout } from "../layouts/dashboard-layout";
+import { AppShell } from "@/features/layout/components/app-shell";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
+import { SettingsPage } from "@/features/layout/components/settings-page";
+import { PlaceholderPage } from "@/features/layout/components/placeholder-page";
 
 export const router = createBrowserRouter([
   {
@@ -35,11 +37,23 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        element: <DashboardLayout />,
+        element: <AppShell />,
         children: [
           {
             path: "/dashboard",
             element: <DashboardPage />,
+          },
+          {
+            path: "/settings",
+            element: <SettingsPage />,
+          },
+          {
+            path: "/employees",
+            element: <PlaceholderPage title="Employees" />,
+          },
+          {
+            path: "/admin",
+            element: <PlaceholderPage title="Admin" />,
           },
         ],
       },
