@@ -71,6 +71,6 @@ Follow Bulletproof React feature structure under `northstar-web/src/features/aut
 - Manual: login → inspect `Set-Cookie` (httpOnly, secure, sameSite=strict) → call `/auth/refresh` without body → new access token → call `/auth/logout` → refresh with old token → 401.
 
 ## Out of Scope (follow-up)
-- Defect [B] role union centralization (admin|manager|employee vs type says user).
+- Defect [B] role union centralization (admin|manager|employee vs type says user) — see `docs/WORKSPACE_AI_KANBAN.md`; the board needs this first.
 - Defect [C] dedicated login/refresh rate limiting.
 - Defect [D]/[F] server-side register validation + logger.
