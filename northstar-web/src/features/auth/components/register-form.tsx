@@ -9,9 +9,10 @@ import { useRegister } from "../hooks/use-register";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { FieldError } from "./field-error";
 import { AuthLink } from "./auth-link";
 
-const RegisterForm = () => {
+export const RegisterForm = () => {
   const navigate = useNavigate();
   const registerMutation = useRegister();
 
@@ -19,7 +20,11 @@ const RegisterForm = () => {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({ resolver: zodResolver(registerSchema) });
+  } = useForm<RegisterPayload>({ resolver: zodResolver(registerSchema) });
+
+  const serverError = registerMutation.isError
+    ? (registerMutation.error as Error)?.message ?? "Registration failed. Please try again."
+    : undefined;
 
   const onSubmit = (data: RegisterPayload) => {
     registerMutation.mutate(data, {
@@ -29,56 +34,71 @@ const RegisterForm = () => {
     });
   };
 
+  const isPending = registerMutation.isPending;
+
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4 flex flex-col gap-2"
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+      {serverError && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {serverError}
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="name">Name</Label>
         <Input
-          {...register("name")}
-          className="border p-2 w-full"
+          id="name"
           type="text"
-          placeholder="Name"
+          autoComplete="name"
+          placeholder="Jane Doe"
+          disabled={isPending}
+          aria-invalid={errors.name ? true : undefined}
+          aria-describedby={errors.name ? "name-error" : undefined}
+          className="border"
+          {...register("name")}
         />
-        {errors.name && (
-          <p className="text-red-500 text-sm">{errors.name.message}</p>
-        )}
+        <FieldError id="name-error" message={errors.name?.message} />
       </div>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Email</Label>
         <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          disabled={isPending}
+          aria-invalid={errors.email ? true : undefined}
+          aria-describedby={errors.email ? "email-error" : undefined}
+          className="border"
           {...register("email")}
-          className="border p-2 w-full"
-          type="text"
-          placeholder="Email"
         />
-        {errors.email && (
-          <p className="text-red-500 text-sm">{errors.email.message}</p>
-        )}
+        <FieldError id="email-error" message={errors.email?.message} />
       </div>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">Password</Label>
         <Input
-          {...register("password")}
-          className="border p-2 w-full"
+          id="password"
           type="password"
-          placeholder="Password"
+          autoComplete="new-password"
+          placeholder="At least 6 characters"
+          disabled={isPending}
+          aria-invalid={errors.password ? true : undefined}
+          aria-describedby={errors.password ? "password-error" : undefined}
+          className="border"
+          {...register("password")}
         />
-        {errors.password && (
-          <p className="text-red-500 text-sm">{errors.password.message}</p>
-        )}
+        <FieldError id="password-error" message={errors.password?.message} />
       </div>
-      <Button
-        disabled={registerMutation.isPending}
-        className="px-4 py-2 w-full mt-2"
-        type="submit"
-      >
-        Submit
+
+      <Button type="submit" disabled={isPending} className="mt-2 w-full">
+        {isPending ? "Creating account..." : "Create account"}
       </Button>
+
       <AuthLink text="Already have an account?" linkText="Login" to="/login" />
     </form>
   );

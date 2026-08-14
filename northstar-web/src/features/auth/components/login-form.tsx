@@ -10,6 +10,7 @@ import { setToken } from "../utils/token";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { FieldError } from "./field-error";
 import { AuthLink } from "./auth-link";
 
 export const LoginForm = () => {
@@ -22,6 +23,10 @@ export const LoginForm = () => {
     formState: { errors },
   } = useForm<LoginPayload>({ resolver: zodResolver(loginSchema) });
 
+  const serverError = loginMutation.isError
+    ? (loginMutation.error as Error)?.message ?? "Login failed. Please try again."
+    : undefined;
+
   const onSubmit = (data: LoginPayload) => {
     loginMutation.mutate(data, {
       onSuccess: (res) => {
@@ -31,52 +36,56 @@ export const LoginForm = () => {
     });
   };
 
+  const isPending = loginMutation.isPending;
+
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-3 flex flex-col gap-2"
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+      {serverError && (
+        <div
+          role="alert"
+          className="rounded-2xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {serverError}
+        </div>
+      )}
+
       <div className="flex flex-col gap-2">
-        <Label className="pl-1" htmlFor="email">
-          Email
-        </Label>
+        <Label htmlFor="email">Email</Label>
         <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          disabled={isPending}
+          aria-invalid={errors.email ? true : undefined}
+          aria-describedby={errors.email ? "email-error" : undefined}
+          className="border"
           {...register("email")}
-          placeholder="Email"
-          className="border p-2 w-full"
         />
-        {errors.email && (
-          <p className="text-red-500 text-sm">{errors.email.message}</p>
-        )}
+        <FieldError id="email-error" message={errors.email?.message} />
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label className="pl-1" htmlFor="password">
-          Password
-        </Label>
+        <Label htmlFor="password">Password</Label>
         <Input
+          id="password"
           type="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+          disabled={isPending}
+          aria-invalid={errors.password ? true : undefined}
+          aria-describedby={errors.password ? "password-error" : undefined}
+          className="border"
           {...register("password")}
-          placeholder="Password"
-          className="border p-2 w-full"
         />
-        {errors.password && (
-          <p className="text-red-500 text-sm">{errors.password.message}</p>
-        )}
+        <FieldError id="password-error" message={errors.password?.message} />
       </div>
 
-      <Button
-        type="submit"
-        disabled={loginMutation.isPending}
-        className="w-full px-4 py-4 mt-2"
-      >
-        {loginMutation.isPending ? "Logging in..." : "Login"}
+      <Button type="submit" disabled={isPending} className="mt-2 w-full">
+        {isPending ? "Signing in..." : "Sign in"}
       </Button>
-      <AuthLink
-        text="Don't have an account?"
-        linkText="Register"
-        to="/register"
-      />
+
+      <AuthLink text="Don't have an account?" linkText="Register" to="/register" />
     </form>
   );
 };
