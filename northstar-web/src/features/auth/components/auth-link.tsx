@@ -8,9 +8,9 @@ type AuthLinkProps = {
 
 export const AuthLink = ({ text, linkText, to }: AuthLinkProps) => {
   return (
-    <p className="text-ceter text-sm text-muted-foreground">
+    <p className="text-center text-sm text-muted-foreground">
       {text}{" "}
-      <Link to={to} className="font-medium underline underline-offset-4">
+      <Link to={to} className="font-medium text-primary underline underline-offset-4">
         {linkText}
       </Link>
     </p>
