@@ -17,3 +17,10 @@ export const register = async (data: RegisterPayload) => {
 
   return response.data;
 };
+
+// Revokes the server-side refresh token (httpOnly cookie). The browser drops the
+// cookie via the Set-Cookie clear in the response; we also clear the access token
+// from localStorage in the caller.
+export const logout = async (): Promise<void> => {
+  await api.post("/auth/logout");
+};
