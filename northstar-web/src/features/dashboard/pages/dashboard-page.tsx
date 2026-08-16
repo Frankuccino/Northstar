@@ -2,10 +2,15 @@ import { EmployeesSection } from "@/features/employees/components/employees-sect
 
 export const DashboardPage = () => {
   return (
-    <>
-      <h1>Employees</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage your team members and their details.
+        </p>
+      </div>
 
       <EmployeesSection />
-    </>
+    </div>
   );
 };
