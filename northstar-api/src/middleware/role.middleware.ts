@@ -1,21 +1,20 @@
 import { Request, Response, NextFunction } from "express";
+import type { AuthPayload } from "../types/express.js";
+import { isRole, type Role } from "../types/role.js";
 
-export const authorize = (...allowedRoles: string[]) => {
+// Authorizes a route by role. The JWT is already verified by `authenticate`,
+// so here we only check the decoded role is a real Role and is permitted.
+export const authorize = (...allowedRoles: Role[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = (req as any).user;
+    const user = req.user as AuthPayload | undefined;
 
-    if (!user) {
-      return res.status(401).json({
-        error: "Unauthorized",
-      });
+    // 401 if no authenticated user or a malformed/forged role claim.
+    if (!user || !isRole(user.role)) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
     if (!allowedRoles.includes(user.role)) {
-      return res.status(403).json({
-        error: "Forbidden",
-      });
+      return res.status(403).json({ error: "Forbidden" });
     }
     next();
   };
 };
-// So basically we authorize first the user using the JWT token, then we do Authorization through the roles.
-// The role that can be accessed is passed in the variable as an argument.
