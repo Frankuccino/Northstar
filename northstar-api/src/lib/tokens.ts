@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import type { AuthPayload } from "../types/express.js";
+import type { Role } from "../types/role.js";
 
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_DAYS = 7;
@@ -17,7 +18,7 @@ const getSecret = () => {
 export const signAccessToken = (payload: {
   id: number;
   email: string;
-  role: string;
+  role: Role;
 }): string => {
   return jwt.sign(
     { id: payload.id, email: payload.email, role: payload.role },

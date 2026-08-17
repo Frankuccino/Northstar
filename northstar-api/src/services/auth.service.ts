@@ -10,6 +10,7 @@ import { toSafeUser } from "../lib/to-safe-user.js";
 import { hashPassword, verifyPassword } from "../lib/auth.js";
 import { migrateUserPassword } from "./auth-migration.service.js";
 import { signAccessToken } from "../lib/tokens.js";
+import type { Role } from "../types/role.js";
 import { issueRefreshToken } from "./refresh-tokens.service.js";
 
 export const register = async (
@@ -62,7 +63,7 @@ export const login = async (email: string, password: string) => {
   const accessToken = signAccessToken({
     id: activeUser.id,
     email: activeUser.email,
-    role: activeUser.role ?? "employee",
+    role: (activeUser.role ?? "employee") as Role,
   });
 
   // Stateless access token (15m) + server-side refresh token (httpOnly cookie).

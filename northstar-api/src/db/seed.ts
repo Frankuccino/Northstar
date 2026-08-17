@@ -2,6 +2,7 @@ import "dotenv/config";
 import { sql, type InferInsertModel } from "drizzle-orm";
 import { db } from "./index.js";
 import { employees, users } from "./schema.js";
+import { type Role } from "../types/role.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -9,7 +10,7 @@ type SeedUser = {
   email: string;
   name: string;
   password: string;
-  role: "admin" | "manager" | "employee";
+  role: Role;
 };
 
 type SeedEmployee = {

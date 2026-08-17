@@ -1,16 +1,32 @@
-import { integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  integer,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  check,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { ROLES, type Role } from "../../types/role.js";
 
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  name: text("name"),
+const roleCheck = sql`${sql.identifier("role")} IN (${sql.raw(
+  ROLES.map((r) => `'${r}'`).join(", "),
+)})`;
 
-  password: text("password").notNull(),
-  passwordVersion: integer("password_version").default(1).notNull(),
+export const users = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    email: text("email").notNull().unique(),
+    name: text("name"),
 
-  role: text("role").default("employee"),
-  // admin | manager | employee
+    password: text("password").notNull(),
+    passwordVersion: integer("password_version").default(1).notNull(),
 
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
+    role: text("role").$type<Role>().notNull().default("employee"),
+
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [check("users_role_check", roleCheck)],
+);
