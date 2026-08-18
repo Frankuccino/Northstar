@@ -5,18 +5,18 @@ import {
   Settings,
   type LucideIcon,
 } from "lucide-react";
+import type { Role } from "@/types/role";
 
 export type NavItem = {
   label: string;
   to: string;
   icon: LucideIcon;
   // When omitted, the item is visible to every authenticated user.
-  roles?: string[];
+  roles?: Role[];
 };
 
 // Central nav config. The App Shell filters by the current user's role, so adding
-// a route later is a one-line change here. Admin gating uses the string "admin"
-// for now; becomes type-safe once the Role union ([B]) lands.
+// a route later is a one-line change here. Admin gating uses the Role union now.
 export const navItems: NavItem[] = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Employees", to: "/employees", icon: Users },

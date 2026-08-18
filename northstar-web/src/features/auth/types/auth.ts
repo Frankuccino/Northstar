@@ -1,3 +1,5 @@
+import type { Role } from "@/types/role";
+
 export interface LoginPayload {
   email: string;
   password: string;
@@ -12,7 +14,7 @@ export interface RegisterPayload {
 export interface User {
   id: string;
   email: string;
-  role: string;
+  role: Role;
 }
 
 export interface AuthResponse {

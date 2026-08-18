@@ -2,11 +2,12 @@ import { useMemo } from "react";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
 
 import { getToken } from "../utils/token";
+import type { Role } from "@/types/role";
 
 type CurrentUser = {
   id: string | number;
   email: string;
-  role: string;
+  role: Role;
 };
 
 // Single source of truth for "who is logged in" on the client.
@@ -22,7 +23,7 @@ export const useCurrentUser = (): CurrentUser | null => {
       return {
         id: payload.sub,
         email: payload.email ?? "",
-        role: payload.role ?? "employee",
+        role: (payload.role ?? "employee") as Role,
       };
     } catch {
       return null;

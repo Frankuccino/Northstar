@@ -3,13 +3,14 @@ import { cn } from "@/lib/utils";
 
 import { navItems, type NavItem } from "./nav-items";
 import { useCurrentUser } from "@/features/auth/hooks/use-current-user";
+import type { Role } from "@/types/role";
 
 type SidebarProps = {
   collapsed?: boolean;
   onNavigate?: () => void;
 };
 
-const canShow = (item: NavItem, role: string | undefined) =>
+const canShow = (item: NavItem, role: Role | undefined) =>
   !item.roles || (role ? item.roles.includes(role) : false);
 
 export const Sidebar = ({ collapsed = false, onNavigate }: SidebarProps) => {
