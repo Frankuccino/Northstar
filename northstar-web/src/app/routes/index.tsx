@@ -8,6 +8,8 @@ import { AppShell } from "@/features/layout/components/app-shell";
 import { DashboardPage } from "@/features/dashboard/pages/dashboard-page";
 import { SettingsPage } from "@/features/layout/components/settings-page";
 import { PlaceholderPage } from "@/features/layout/components/placeholder-page";
+import { ProjectsPage } from "@/features/workspace/pages/projects-page";
+import { ProjectDetailPage } from "@/features/workspace/pages/project-detail-page";
 
 export const router = createBrowserRouter([
   {
@@ -50,6 +52,14 @@ export const router = createBrowserRouter([
           {
             path: "/employees",
             element: <PlaceholderPage title="Employees" />,
+          },
+          {
+            path: "/workspace",
+            element: <ProjectsPage />,
+          },
+          {
+            path: "/workspace/:projectId",
+            element: <ProjectDetailPage />,
           },
           {
             path: "/admin",
