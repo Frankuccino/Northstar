@@ -9,6 +9,7 @@ import {
   generateSuggestion,
   getLatestSuggestions,
   validateSuggestion,
+  markValidated,
   approveCommit,
 } from "../services/workspace.service.js";
 
@@ -133,6 +134,19 @@ export const validateSuggestionHandler = async (
       reason,
     );
     res.status(201).json(validation);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const markValidatedHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const task = await markValidated(Number(req.params.id));
+    res.json(task);
   } catch (err) {
     next(err);
   }

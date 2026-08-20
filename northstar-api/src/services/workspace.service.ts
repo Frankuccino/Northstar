@@ -9,7 +9,7 @@ import {
   type SuggestionType,
 } from "../db/schema.js";
 import type { TaskStatus } from "../types/task-status.js";
-import { assertTransition } from "./workspace/state-machine.js";
+import { assertTransition, canTransition } from "./workspace/state-machine.js";
 import { aiProvider, type SuggestionType as AiSuggestionType } from "../lib/ai/provider.js";
 
 // ---- Projects -------------------------------------------------------------
@@ -131,13 +131,51 @@ export const validateSuggestion = async (
     .returning();
 
   // A rejection sends the task back for revision; an accept/approval can move
-  // it toward validated. The state machine enforces legality.
-  if (decision === "reject") {
-    await moveTask(taskId, "needs_revision");
-  } else if (decision === "accept") {
-    await moveTask(taskId, "validated");
+  // it toward validated. The state machine enforces legality — only move when
+  // the transition is actually allowed, otherwise just record the validation so
+  // the human-in-the-loop action never crashes on an illegal transition.
+  const target: TaskStatus =
+    decision === "reject" ? "needs_revision" : "validated";
+  if (canTransition(task.status, target)) {
+    await moveTask(taskId, target);
   }
   return validation;
+};
+
+// ---- Mark validated (human approval shortcut) ----------------------------
+// Provides a path to `validated` (the commit prerequisite) that does NOT depend
+// on AI suggestions. Walks forward through ONLY legal transitions until it can
+// reach `validated`, so it works from any starting status (e.g. a freshly
+// created `backlog` task with no suggestions yet). Terminal states (`validated`,
+// `done`) are no-ops — they're already at/beyond the target.
+const VALIDATED_WALK: Record<TaskStatus, TaskStatus | null> = {
+  backlog: "in_progress",
+  ai_drafting: "ready",
+  ready: "in_progress",
+  in_progress: "validated",
+  needs_revision: "in_progress",
+  validated: null,
+  done: null,
+};
+
+export const markValidated = async (taskId: number) => {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new Error("Task not found");
+
+  let current = task.status as TaskStatus;
+  // Guard against any unexpected loop in the transition graph.
+  for (let i = 0; i < 10 && current !== "validated"; i++) {
+    const next = VALIDATED_WALK[current];
+    if (!next) break;
+    if (!canTransition(current, next)) break;
+    await moveTask(taskId, next);
+    current = next;
+  }
+  const [updated] = await db
+    .select()
+    .from(tasks)
+    .where(eq(tasks.id, taskId));
+  return updated;
 };
 
 // ---- Commit records (AI-guided, human-approved) ---------------------------

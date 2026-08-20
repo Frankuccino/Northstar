@@ -20,6 +20,7 @@ import {
   generateSuggestionHandler,
   listSuggestionsHandler,
   validateSuggestionHandler,
+  markValidatedHandler,
   approveCommitHandler,
 } from "../controllers/workspace.controller.js";
 
@@ -68,6 +69,10 @@ router.post(
   "/tasks/:id/validate",
   validate(validateSuggestionSchema),
   validateSuggestionHandler,
+);
+router.patch(
+  "/tasks/:id/validate-task",
+  markValidatedHandler,
 );
 router.post(
   "/tasks/:id/commit",
