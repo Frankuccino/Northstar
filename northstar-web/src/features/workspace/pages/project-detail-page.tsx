@@ -12,6 +12,7 @@ import { workspaceKeys } from "../api/workspace-query-keys";
 import { Board } from "../components/board";
 import { TaskDetail } from "../components/task-detail";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
+import { wipLimitFor } from "../types/workspace";
 
 export const ProjectDetailPage = () => {
   const { projectId } = useParams();
@@ -62,6 +63,12 @@ export const ProjectDetailPage = () => {
   // object captured when the card was clicked.
   const selectedTask = tasks?.find((t) => t.id === selected?.id) ?? selected;
 
+  // Backlog WIP cap — disable "Add task" and show a hint when full. The board's
+  // yellow n/cap badge stays; this is the form-side guard so the button can't
+  // be clicked into a server 400.
+  const backlogTasks = (tasks ?? []).filter((t) => t.status === "backlog");
+  const backlogFull = backlogTasks.length >= wipLimitFor("backlog");
+
   return (
     <div className="space-y-6">
       <Button
@@ -91,10 +98,19 @@ export const ProjectDetailPage = () => {
             placeholder="Task title"
           />
         </div>
-        <Button disabled={!title || create.isPending} onClick={() => create.mutate()}>
+        <Button
+          disabled={!title || backlogFull || create.isPending}
+          onClick={() => create.mutate()}
+        >
           Add task
         </Button>
       </div>
+      {backlogFull && (
+        <p className="text-xs text-amber-500">
+          Backlog is at its WIP limit ({wipLimitFor("backlog")}). Move or complete
+          a task to add more.
+        </p>
+      )}
 
       <Board
         tasks={tasks ?? []}

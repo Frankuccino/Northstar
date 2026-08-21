@@ -1,4 +1,4 @@
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   projects,
@@ -9,7 +9,7 @@ import {
   type SuggestionType,
 } from "../db/schema.js";
 import type { TaskStatus } from "../types/task-status.js";
-import { assertTransition, canTransition } from "./workspace/state-machine.js";
+import { assertTransition, canTransition, wipLimitFor } from "./workspace/state-machine.js";
 import { aiProvider, type SuggestionType as AiSuggestionType } from "../lib/ai/provider.js";
 
 // ---- Projects -------------------------------------------------------------
@@ -30,12 +30,41 @@ export const getProject = async (id: number) => {
 };
 
 // ---- Tasks ----------------------------------------------------------------
+// Count tasks in a column for a project (optionally excluding one task, e.g. the
+// card being moved so it doesn't count against its own destination cap).
+const countTasksInColumn = async (
+  projectId: number,
+  status: TaskStatus,
+  excludeTaskId?: number,
+) => {
+  const rows = await db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(
+      excludeTaskId !== undefined
+        ? and(
+            eq(tasks.projectId, projectId),
+            eq(tasks.status, status),
+            sql`${tasks.id} <> ${excludeTaskId}`,
+          )
+        : and(eq(tasks.projectId, projectId), eq(tasks.status, status)),
+    );
+  return rows.length;
+};
+
 export const createTask = async (
   projectId: number,
   title: string,
   description?: string,
   assigneeId?: number,
 ) => {
+  // New tasks always enter `backlog`; enforce that column's WIP cap.
+  const limit = wipLimitFor("backlog");
+  const count = await countTasksInColumn(projectId, "backlog");
+  if (count >= limit) {
+    throw new Error(`WIP limit reached for backlog (cap ${limit})`);
+  }
+
   const [task] = await db
     .insert(tasks)
     .values({ projectId, title, description, assigneeId, status: "backlog" })
@@ -51,6 +80,15 @@ export const getTasksByProject = async (projectId: number) =>
 export const moveTask = async (taskId: number, to: TaskStatus) => {
   const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
   if (!task) throw new Error("Task not found");
+
+  // Enforce the destination column's WIP cap. Exclude the card itself so moving
+  // within (or back into) a column it already occupies doesn't count against it.
+  const limit = wipLimitFor(to);
+  const count = await countTasksInColumn(task.projectId, to, taskId);
+  if (count >= limit) {
+    throw new Error(`WIP limit reached for ${to} (cap ${limit})`);
+  }
+
   assertTransition(task.status, to);
   const [updated] = await db
     .update(tasks)

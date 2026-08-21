@@ -23,3 +23,21 @@ export function assertTransition(from: TaskStatus, to: TaskStatus): void {
     throw new Error(`Illegal task transition: ${from} -> ${to}`);
   }
 }
+
+// ---- WIP limits -----------------------------------------------------------
+// Core Kanban practice: cap the number of cards in a column so work-in-progress
+// stays visible and bounded. A single default applies to every column; specific
+// statuses can override. Keep EXTREMELY small — the point is to expose flow
+// constraints, not to model real capacity.
+export const DEFAULT_WIP = 5;
+
+// Override only the columns that need a tighter cap. Anything absent falls back
+// to DEFAULT_WIP.
+export const WIP_LIMITS: Partial<Record<TaskStatus, number>> = {
+  backlog: 8,
+  in_progress: 4,
+};
+
+export function wipLimitFor(status: TaskStatus): number {
+  return WIP_LIMITS[status] ?? DEFAULT_WIP;
+}

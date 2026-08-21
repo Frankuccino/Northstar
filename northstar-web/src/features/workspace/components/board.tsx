@@ -19,6 +19,7 @@ import {
   BOARD_COLUMNS,
   COLUMN_LABELS,
   legalNextStatuses,
+  wipLimitFor,
   type Task,
   type SuggestionType,
   type TaskStatus,
@@ -46,21 +47,35 @@ const BoardColumn = ({
   // `allowedTargets` is null and every column is enabled.
   const isAllowed =
     allowedTargets === null || allowedTargets.has(status);
+
+  // WIP cap (frontend mirror — server is authoritative). A full column is
+  // greyed and non-droppable, consistent with the transition guardrail.
+  const cap = wipLimitFor(status);
+  const atCap = tasks.length >= cap;
+  const isDroppable = isAllowed && !atCap;
+
   const { setNodeRef, isOver } = useDroppable({
     id: status,
-    disabled: !isAllowed,
+    disabled: !isDroppable,
   });
 
   return (
     <div className="flex w-64 shrink-0 flex-col gap-2">
       <div className="flex items-center justify-between px-1">
         <h3 className="text-sm font-semibold">{COLUMN_LABELS[status]}</h3>
-        <span className="text-xs text-muted-foreground">{tasks.length}</span>
+        <span
+          className={`text-xs ${
+            atCap ? "font-semibold text-amber-500" : "text-muted-foreground"
+          }`}
+          title={`WIP cap ${cap}`}
+        >
+          {tasks.length}/{cap}
+        </span>
       </div>
       <Card
         ref={setNodeRef}
         className={`flex min-h-32 flex-col gap-2 p-2 transition-colors ${
-          !isAllowed
+          !isDroppable
             ? "opacity-40 grayscale"
             : isOver
               ? "ring-2 ring-primary/40"

@@ -12,10 +12,11 @@ export const errorHandler = (
 ) => {
   const message = err instanceof Error ? err.message : "Unknown error";
 
-  // Illegal state-machine transitions, missing entities, etc. -> 4xx.
+  // Illegal state-machine transitions, missing entities, WIP-cap breaches, etc.
   const isClientError =
     /not found/i.test(message) ||
     /illegal task transition/i.test(message) ||
+    /wip limit/i.test(message) ||
     /cannot commit/i.test(message);
 
   const status = isClientError ? 400 : 500;
