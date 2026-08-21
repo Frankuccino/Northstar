@@ -105,4 +105,131 @@ describe("workspace state machine (server-authoritative)", () => {
     const res = await request(app).post("/workspace").send({ name: "X" });
     expect(res.status).toBe(401);
   });
+
+  it("requires a reason when rejecting a suggestion (human-in-the-loop)", async () => {
+    const token = await authToken();
+
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "WS Test Project" });
+    const projectId = project.body.id;
+
+    const task = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Task A" });
+    const taskId = task.body.id;
+
+    const suggestion = await request(app)
+      .post(`/workspace/tasks/${taskId}/suggestions`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "approach" });
+    const suggestionId = suggestion.body.id;
+
+    // reject without reason must be rejected by validation
+    const res = await request(app)
+      .post(`/workspace/tasks/${taskId}/validate`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ suggestionId, decision: "reject" });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/validation error/i);
+  });
+
+  it("rejects a task creation when the backlog WIP cap is reached", async () => {
+    const token = await authToken();
+
+    // backlog cap is 8 (see state-machine WIP_LIMITS)
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "WS Test Project" });
+    const projectId = project.body.id;
+
+    for (let i = 0; i < 8; i++) {
+      const r = await request(app)
+        .post(`/workspace/${projectId}/tasks`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ title: `Seed ${i}` });
+      expect(r.status).toBe(201);
+    }
+
+    // 9th task should be rejected by the WIP guard
+    const res = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Overflow" });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/wip limit/i);
+  });
+
+  it("rejects a move into a column that is at its WIP cap", async () => {
+    const token = await authToken();
+
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "WS Test Project" });
+    const projectId = project.body.id;
+
+    // in_progress cap is 4
+    const ids: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      const t = await request(app)
+        .post(`/workspace/${projectId}/tasks`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ title: `Seed ${i}` });
+      ids.push(t.body.id);
+    }
+    // move all 4 to in_progress
+    for (const id of ids) {
+      const r = await request(app)
+        .patch(`/workspace/tasks/${id}/move`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ status: "in_progress" });
+      expect(r.status).toBe(200);
+    }
+
+    // a 5th backlog task cannot move into the full in_progress column
+    const extra = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Extra" });
+    const extraId = extra.body.id;
+    const res2 = await request(app)
+      .patch(`/workspace/tasks/${extraId}/move`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "in_progress" });
+    expect(res2.status).toBe(400);
+    expect(res2.body.error).toMatch(/wip limit/i);
+  });
+
+  it("requires justification when approving a commit", async () => {
+    const token = await authToken();
+
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "WS Test Project" });
+    const projectId = project.body.id;
+
+    const task = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Task A" });
+    const taskId = task.body.id;
+
+    // walk the task to validated
+    await request(app)
+      .patch(`/workspace/tasks/${taskId}/validate-task`)
+      .set("Authorization", `Bearer ${token}`);
+
+    // commit without justification must be rejected by validation
+    const res = await request(app)
+      .post(`/workspace/tasks/${taskId}/commit`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ message: "ship it" });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/validation error/i);
+  });
 });
