@@ -47,10 +47,14 @@ export const TaskDetail = ({
   const [commitJustification, setCommitJustification] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const invalidate = () =>
+  const invalidate = () => {
     queryClient.invalidateQueries({
       queryKey: workspaceKeys.projectTasks(projectId),
     });
+    queryClient.invalidateQueries({
+      queryKey: workspaceKeys.taskSuggestions(task.id),
+    });
+  };
 
   const validate = useMutation({
     mutationFn: (input: { suggestionId: number; decision: "accept" | "reject" | "edit" }) =>
@@ -99,51 +103,54 @@ export const TaskDetail = ({
           Status: {COLUMN_LABELS[task.status]}
         </p>
 
-        <section>
+        <section className="flex h-[55vh] flex-col">
           <h4 className="mb-2 text-sm font-semibold">AI suggestions</h4>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : suggestions && suggestions.length > 0 ? (
-            <ul className="flex max-h-[45vh] flex-col gap-2 overflow-y-auto pr-1">
-              {suggestions.map((s) => (
-                <li key={s.id} className="rounded-md border p-3 text-sm">
-                  <div className="mb-1 flex items-center justify-between">
-                    <span className="font-medium">
-                      {SUGGESTION_LABEL[s.type]} (v{s.version})
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {s.model ?? "stub"}
-                    </span>
-                  </div>
-                  <p className="whitespace-pre-wrap text-muted-foreground">
-                    {s.content}
-                  </p>
-                  <div className="mt-2 flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        validate.mutate({ suggestionId: s.id, decision: "accept" })
-                      }
-                    >
-                      Accept
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        validate.mutate({ suggestionId: s.id, decision: "reject" })
-                      }
-                    >
-                      Reject
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">No suggestions yet.</p>
-          )}
+          <div className="flex-1 overflow-y-auto pr-1">
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : suggestions && suggestions.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {suggestions.map((s) => (
+                  <li key={s.id} className="rounded-md border p-3 text-sm">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="font-medium">
+                        {SUGGESTION_LABEL[s.type]} (v{s.version})
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {s.model ?? "stub"}
+                      </span>
+                    </div>
+                    <p className="whitespace-pre-wrap text-muted-foreground">
+                      {s.content}
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          validate.mutate({ suggestionId: s.id, decision: "accept" })
+                        }
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!reason}
+                        onClick={() =>
+                          validate.mutate({ suggestionId: s.id, decision: "reject" })
+                        }
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No suggestions yet.</p>
+            )}
+          </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
             {(["context", "approach", "checklist", "draft", "commit_guidance"] as SuggestionType[]).map(
@@ -201,7 +208,7 @@ export const TaskDetail = ({
                 placeholder="Justification"
               />
               <Button
-                disabled={!commitMessage || commit.isPending}
+                disabled={!commitMessage || !commitJustification || commit.isPending}
                 onClick={() => commit.mutate()}
               >
                 Approve & mark done
