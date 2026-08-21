@@ -57,9 +57,14 @@ export const createTaskHandler = async (
   next: NextFunction,
 ) => {
   try {
-    const { projectId, title, description, assigneeId } = req.body;
-    const task = await createTask(projectId, title, description, assigneeId);
-    res.status(201).json(task);
+  const { title, description, assigneeId } = req.body;
+  const task = await createTask(
+    Number(req.params.id),
+    title,
+    description,
+    assigneeId,
+  );
+  res.status(201).json(task);
   } catch (err) {
     next(err);
   }

@@ -86,7 +86,8 @@ export const getProjectTasks = async (projectId: number): Promise<Task[]> => {
 };
 
 export const createTask = async (data: CreateTaskInput): Promise<Task> => {
-  const res = await api.post(`/workspace/${data.projectId}/tasks`, data);
+  const { projectId, ...body } = data;
+  const res = await api.post(`/workspace/${projectId}/tasks`, body);
   return toTask(res.data);
 };
 

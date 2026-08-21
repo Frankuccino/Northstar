@@ -40,6 +40,19 @@ export const COLUMN_LABELS: Record<TaskStatus, string> = {
   done: "Done",
 };
 
+// Frontend mirror of the backend WIP policy (northstar-api/src/services/
+// workspace/state-machine.ts). Used only to *display* the cap and grey out a
+// column that is full; the server remains authoritative on enforcement.
+export const DEFAULT_WIP = 5;
+export const WIP_LIMITS: Partial<Record<TaskStatus, number>> = {
+  backlog: 8,
+  in_progress: 4,
+};
+
+export function wipLimitFor(status: TaskStatus): number {
+  return WIP_LIMITS[status] ?? DEFAULT_WIP;
+}
+
 export type SuggestionType =
   | "context"
   | "approach"
@@ -104,6 +117,9 @@ export interface CreateProjectInput {
 }
 
 export interface CreateTaskInput {
+  // `projectId` identifies the parent project via the URL (/workspace/:id/tasks);
+  // it is NOT sent in the request body (the backend reads it from the param, so
+  // the body must not echo it back — avoids a confused-deputy mismatch).
   projectId: number;
   title: string;
   description?: string;
