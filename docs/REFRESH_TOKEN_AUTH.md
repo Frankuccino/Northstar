@@ -66,11 +66,16 @@ Follow Bulletproof React feature structure under `northstar-web/src/features/aut
 - Refresh endpoint must be **strictly rate-limited** (per-IP + per-fingerprint) — add a dedicated limiter (defect [C] follow-up).
 - Refresh token row must be cleaned periodically (expired/revoked) — add a maintenance job or rely on `expiresAt` filter in lookups.
 
+## Defect [C] — DONE (this session)
+- `src/middleware/rate-limit.middleware.ts` now exports `authLimiter` (10 req / 15 min per IP) in addition to the global `rateLimiter` (100/15min).
+- `authLimiter` is applied to `POST /register`, `POST /login`, `POST /refresh` in `src/routes/auth.routes.ts` — layered on top of the global limiter (defense in depth).
+- Returns `429` with `RateLimit-*` standard headers and a JSON `error` message. Honors `SKIP_RATE_LIMIT=true` so the test suite is unaffected.
+- Verified by `tests/auth.test.ts` (11 tests): the 11th login in the window is blocked with 429.
+
 ## Verification
 - Backend: `npm test` (auth suite green, includes refresh/rotation/revocation).
 - Manual: login → inspect `Set-Cookie` (httpOnly, secure, sameSite=strict) → call `/auth/refresh` without body → new access token → call `/auth/logout` → refresh with old token → 401.
 
 ## Out of Scope (follow-up)
 - Defect [B] role union centralization (admin|manager|employee vs type says user) — see `docs/WORKSPACE_AI_KANBAN.md`; the board needs this first.
-- Defect [C] dedicated login/refresh rate limiting.
 - Defect [D]/[F] server-side register validation + logger.

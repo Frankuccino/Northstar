@@ -116,9 +116,10 @@ Done.
   - `Permissions-Policy` if specified
   - HSTS if specified
 - Rate limiter:
-  - 100 requests per 15 minutes per client IP
+  - 100 requests per 15 minutes per client IP (global baseline, `rateLimiter`)
+  - 10 requests per 15 minutes per client IP on `/register`, `/login`, `/refresh` (`authLimiter`, defect [C] — strict limiter for credential endpoints)
   - Skips when `SKIP_RATE_LIMIT=true`
-  - Returns standard `RateLimit-*` headers
+  - Returns `429` + standard `RateLimit-*` headers
 - Environment split:
   - Tests: rate limiter disabled via `SKIP_RATE_LIMIT=true`
   - Dev and above: rate limiter active, helmet active but CSP off
