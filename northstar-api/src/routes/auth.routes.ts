@@ -10,12 +10,13 @@ import {
 
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorize } from "../middleware/role.middleware.js";
+import { authLimiter } from "../middleware/rate-limit.middleware.js";
 
 const router = express.Router();
 
-router.post("/register", registerController);
-router.post("/login", loginController);
-router.post("/refresh", refreshController); // public; consumes httpOnly cookie
+router.post("/register", authLimiter, registerController);
+router.post("/login", authLimiter, loginController);
+router.post("/refresh", authLimiter, refreshController); // public; consumes httpOnly cookie
 router.post("/logout", logoutController); // revokes the refresh cookie server-side
 router.get("/me", authenticate, meController);
 router.get("/admin", authenticate, authorize("admin"), (_, res) => {
