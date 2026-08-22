@@ -11,10 +11,12 @@ import {
 import { authenticate } from "../middleware/auth.middleware.js";
 import { authorize } from "../middleware/role.middleware.js";
 import { authLimiter } from "../middleware/rate-limit.middleware.js";
+import { validate } from "../middleware/validate.middleware.js";
+import { registerSchema } from "../schemas/auth.schema.js";
 
 const router = express.Router();
 
-router.post("/register", authLimiter, registerController);
+router.post("/register", authLimiter, validate(registerSchema), registerController);
 router.post("/login", authLimiter, loginController);
 router.post("/refresh", authLimiter, refreshController); // public; consumes httpOnly cookie
 router.post("/logout", logoutController); // revokes the refresh cookie server-side
