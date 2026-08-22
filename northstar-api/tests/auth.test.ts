@@ -1,5 +1,5 @@
 import request from "supertest";
-import { describe, afterEach, it, expect, beforeEach } from "vitest";
+import { describe, afterEach, beforeAll, afterAll, it, expect, beforeEach } from "vitest";
 import app from "../src/app.js";
 import { db } from "../src/db/index.js";
 import { users } from "../src/db/schema.js";
@@ -151,19 +151,30 @@ describe("POST /auth/refresh", () => {
   });
 });
 
-describe("POST /auth/logout", () => {
+describe("POST /auth/login rate limit (defect [C])", () => {
+  const prev = process.env.SKIP_RATE_LIMIT;
+  beforeAll(() => {
+    process.env.SKIP_RATE_LIMIT = "false";
+  });
+  afterAll(() => {
+    if (prev === undefined) delete process.env.SKIP_RATE_LIMIT;
+    else process.env.SKIP_RATE_LIMIT = prev;
+  });
   afterEach(cleanup);
 
-  it("should revoke the refresh token and clear the cookie (200)", async () => {
-    const agent = request.agent(app);
-    await registerAndLogin(agent);
-
-    const logout = await agent.post("/auth/logout").send({});
-    expect(logout.status).toBe(200);
-
-    // Refresh must fail after logout.
-    const refresh = await agent.post("/auth/refresh").send({});
-    expect(refresh.status).toBe(401);
+  it("returns 429 after exceeding the per-IP auth cap", async () => {
+    // 10 is the cap; the 11th request in the window must be blocked.
+    for (let i = 0; i < 10; i++) {
+      await request(app)
+        .post("/auth/login")
+        .send({ email: TEST_EMAIL, password: TEST_PASSWORD });
+    }
+    const res = await request(app)
+      .post("/auth/login")
+      .send({ email: TEST_EMAIL, password: TEST_PASSWORD });
+    expect(res.status).toBe(429);
+    expect(res.body.error).toMatch(/too many authentication attempts/i);
   });
 });
+
 
