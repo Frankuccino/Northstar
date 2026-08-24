@@ -55,6 +55,10 @@ describe("workspace state machine (server-authoritative)", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/illegal task transition/i);
+    // [G] structured error response: correlation id present, stack never leaked.
+    expect(typeof res.body.errorId).toBe("string");
+    expect(res.body.errorId.length).toBeGreaterThan(0);
+    expect(res.body.stack).toBeUndefined();
   });
 
   it("allows a legal transition and records an AI suggestion + validation", async () => {
