@@ -66,16 +66,22 @@ Follow Bulletproof React feature structure under `northstar-web/src/features/aut
 - Refresh endpoint must be **strictly rate-limited** (per-IP + per-fingerprint) — add a dedicated limiter (defect [C] follow-up).
 - Refresh token row must be cleaned periodically (expired/revoked) — add a maintenance job or rely on `expiresAt` filter in lookups.
 
+## Defect [D] — DONE (this session)
+- `src/schemas/auth.schema.ts` (new) enforces server-side registration validation: `name` (1–120), `email` (valid + ≤254), `password` (8–128 chars, must contain a letter AND a digit — passwords are NOT trimmed, as whitespace is part of the secret).
+- `src/routes/auth.routes.ts` applies `validate(registerSchema)` to `POST /register` (consistent with the workspace routes' validate convention). The controller is unchanged — it still reads `email/password/name` from the body; zod rejects malformed input before it reaches the service.
+- `confirmPassword` is intentionally NOT required yet: the frontend `RegisterPayload` does not send it (the confirm-password field is still pending in `RegisterForm`). When that field lands, add `confirmPassword` + a superRefine equality check to `registerSchema`.
+- Verified by `tests/auth.test.ts`: short password (400) and all-letter password (400) rejected with validation error; valid registration still 201.
+- `tests/employees.test.ts` fixtures updated to compliant passwords (`123456` → `AdminPass1`/`UserPass1`/`Manager123`); `cleanup()` now also deletes the manager user so stale weak-password rows from prior runs can't poison re-registration.
+
 ## Defect [C] — DONE (this session)
 - `src/middleware/rate-limit.middleware.ts` now exports `authLimiter` (10 req / 15 min per IP) in addition to the global `rateLimiter` (100/15min).
 - `authLimiter` is applied to `POST /register`, `POST /login`, `POST /refresh` in `src/routes/auth.routes.ts` — layered on top of the global limiter (defense in depth).
 - Returns `429` with `RateLimit-*` standard headers and a JSON `error` message. Honors `SKIP_RATE_LIMIT=true` so the test suite is unaffected.
-- Verified by `tests/auth.test.ts` (11 tests): the 11th login in the window is blocked with 429.
-
-## Verification
+- Verified by `tests/auth.test.ts` (13 tests): the 11th login in the window is blocked with 429.
+- `createProjectSchema` / `createTaskSchema` / `validateSuggestionSchema` / `approveCommitSchema` hardened (trim, lengths, required reason/justification). `createTask` reads `projectId` from URL param.
 - Backend: `npm test` (auth suite green, includes refresh/rotation/revocation).
 - Manual: login → inspect `Set-Cookie` (httpOnly, secure, sameSite=strict) → call `/auth/refresh` without body → new access token → call `/auth/logout` → refresh with old token → 401.
 
 ## Out of Scope (follow-up)
 - Defect [B] role union centralization (admin|manager|employee vs type says user) — see `docs/WORKSPACE_AI_KANBAN.md`; the board needs this first.
-- Defect [D]/[F] server-side register validation + logger.
+- Defect [G] structured logger (replaces console.error TODO in error.middleware.ts).
