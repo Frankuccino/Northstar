@@ -7,19 +7,19 @@ import { eq } from "drizzle-orm";
 
 const TEST_ADMIN = {
   email: "admin@test.com",
-  password: "123456",
+  password: "AdminPass1",
   name: "Admin",
 };
 
 const TEST_USER = {
   email: "user@test.com",
-  password: "123456",
+  password: "UserPass1",
   name: "User",
 };
 
 const MANAGER_EMAIL = "manager.test@example.com";
 
-const TEST_PASSWORD = "123456";
+const TEST_PASSWORD = "Manager123";
 
 const VALID_EMPLOYEE = {
   firstName: "John",
@@ -92,6 +92,7 @@ async function cleanup() {
 
   await db.delete(users).where(eq(users.email, TEST_ADMIN.email));
   await db.delete(users).where(eq(users.email, TEST_USER.email));
+  await db.delete(users).where(eq(users.email, MANAGER_EMAIL));
 }
 
 describe("GET /employees", () => {
