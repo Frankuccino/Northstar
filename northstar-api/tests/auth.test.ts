@@ -40,6 +40,24 @@ describe("POST /auth/register", () => {
 
     expect(res.status).toBe(400);
   });
+
+  it("should reject a password shorter than 8 chars (400, defect [D])", async () => {
+    const res = await request(app)
+      .post("/auth/register")
+      .send({ email: TEST_EMAIL, password: "short", name: TEST_NAME });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/validation error/i);
+  });
+
+  it("should reject a password with no number (400, defect [D])", async () => {
+    const res = await request(app)
+      .post("/auth/register")
+      .send({ email: TEST_EMAIL, password: "allletters", name: TEST_NAME });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/validation error/i);
+  });
 });
 
 describe("POST /auth/login", () => {
