@@ -73,6 +73,12 @@ Follow Bulletproof React feature structure under `northstar-web/src/features/aut
 - Verified by `tests/auth.test.ts`: short password (400) and all-letter password (400) rejected with validation error; valid registration still 201.
 - `tests/employees.test.ts` fixtures updated to compliant passwords (`123456` → `AdminPass1`/`UserPass1`/`Manager123`); `cleanup()` now also deletes the manager user so stale weak-password rows from prior runs can't poison re-registration.
 
+## Defect [G] — DONE (this session)
+- `src/lib/logger.ts` (new) — zero-dependency structured logger with levels (debug/info/warn/error), ISO timestamps, and JSON output in production / pretty lines in dev. Respects `LOG_LEVEL` (default `info`) and `NODE_ENV`. Errors go to stderr; the stack is captured only as server-side structured metadata, never in the message.
+- `src/middleware/error.middleware.ts` — replaced `console.error(err)` with `logger.error("Unhandled error", { status, errorId, path, method, error })`. The client response now carries a correlation `errorId` (UUID) and explicitly omits the stack trace.
+- `src/index.ts` — startup line now uses `logger.info("Server started", { port, env })` instead of `console.log`.
+- Verified by `tests/workspace.test.ts`: illegal-transition response includes `errorId` (non-empty string) and `stack` is `undefined` in the body.
+
 ## Defect [C] — DONE (this session)
 - `src/middleware/rate-limit.middleware.ts` now exports `authLimiter` (10 req / 15 min per IP) in addition to the global `rateLimiter` (100/15min).
 - `authLimiter` is applied to `POST /register`, `POST /login`, `POST /refresh` in `src/routes/auth.routes.ts` — layered on top of the global limiter (defense in depth).
@@ -84,4 +90,3 @@ Follow Bulletproof React feature structure under `northstar-web/src/features/aut
 
 ## Out of Scope (follow-up)
 - Defect [B] role union centralization (admin|manager|employee vs type says user) — see `docs/WORKSPACE_AI_KANBAN.md`; the board needs this first.
-- Defect [G] structured logger (replaces console.error TODO in error.middleware.ts).
