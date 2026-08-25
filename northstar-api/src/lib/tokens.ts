@@ -1,7 +1,7 @@
 import crypto from "crypto";
-import jwt from "jsonwebtoken";
+import jwt, { type JwtPayload } from "jsonwebtoken";
 import type { AuthPayload } from "../types/express.js";
-import type { Role } from "../types/role.js";
+import { isRole, type Role } from "../types/role.js";
 
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_DAYS = 7;
@@ -28,10 +28,22 @@ export const signAccessToken = (payload: {
 };
 
 export const verifyAccessToken = (token: string): AuthPayload => {
-  return jwt.verify(token, getSecret(), {
+  const decoded = jwt.verify(token, getSecret(), {
     issuer: ISSUER,
     audience: AUDIENCE,
-  }) as AuthPayload;
+  }) as JwtPayload & { id?: unknown; email?: unknown; role?: unknown };
+
+  // The role claim is untrusted (a forged/legacy token could carry anything).
+  // Coerce it through isRole and fall back to least-privilege "employee"
+  // rather than trusting a raw cast — this is the single deserialization
+  // point that feeds req.user.role everywhere.
+  const role: Role = isRole(decoded.role) ? decoded.role : "employee";
+
+  return {
+    id: Number(decoded.sub ?? decoded.id),
+    email: typeof decoded.email === "string" ? decoded.email : "",
+    role,
+  };
 };
 
 // Opaque, unguessable refresh token. Returns the raw value (goes to the
