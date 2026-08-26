@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
 
 import { getToken } from "../utils/token";
-import type { Role } from "@/types/role";
+import { isRole, type Role } from "@/types/role";
 
 type CurrentUser = {
   id: string | number;
@@ -18,12 +18,16 @@ export const useCurrentUser = (): CurrentUser | null => {
     if (!token) return null;
 
     try {
-      const payload = jwtDecode<JwtPayload & CurrentUser>(token);
+      const payload = jwtDecode<JwtPayload & { role?: unknown; email?: unknown }>(token);
       if (!payload.sub) return null;
+      // The role claim is untrusted (a forged/legacy token could carry a
+      // non-Role string like "user"). Validate it; fall back to least-privilege
+      // "employee" rather than trusting a raw `as Role` cast.
+      const role: Role = isRole(payload.role) ? payload.role : "employee";
       return {
         id: payload.sub,
-        email: payload.email ?? "",
-        role: (payload.role ?? "employee") as Role,
+        email: typeof payload.email === "string" ? payload.email : "",
+        role,
       };
     } catch {
       return null;
