@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTaskSuggestions } from "../hooks/use-task-suggestions";
+import { useCurrentUser } from "../../auth/hooks/use-current-user";
 import {
   validateSuggestion,
   generateSuggestion,
   approveCommit,
   markValidated,
+  deleteTask,
 } from "../api/workspace.api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
@@ -90,6 +92,18 @@ export const TaskDetail = ({
     mutationFn: () => markValidated(task.id),
     onSuccess: () => invalidate(),
     onError: (e: any) => setError(e?.response?.data?.error ?? "Mark validated failed"),
+  });
+
+  const currentUser = useCurrentUser();
+  const canDelete = currentUser?.role === "admin" || currentUser?.role === "manager";
+
+  const del = useMutation({
+    mutationFn: () => deleteTask(task.id),
+    onSuccess: () => {
+      invalidate();
+      onOpenChange(false);
+    },
+    onError: (e: any) => setError(e?.response?.data?.error ?? "Delete failed"),
   });
 
   return (
@@ -216,6 +230,18 @@ export const TaskDetail = ({
             </div>
           )}
         </section>
+
+        {canDelete && (
+          <section className="border-t pt-3">
+            <Button
+              variant="destructive"
+              disabled={del.isPending}
+              onClick={() => del.mutate()}
+            >
+              Delete task
+            </Button>
+          </section>
+        )}
 
         {error && (
           <p role="alert" className="text-sm text-destructive">
