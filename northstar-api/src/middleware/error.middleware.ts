@@ -22,12 +22,15 @@ export const errorHandler = (
 
   const status = isClientError ? 400 : 500;
 
+  // Authorization failures (e.g. delete without permission) are 403, not 400.
+  const finalStatus = /forbidden/i.test(message) ? 403 : status;
+
   // [G] Structured logging. The stack is captured server-side only (never sent
   // to the client). A correlation id lets the client relay the exact failure
   // to support without exposing internals.
   const errorId = logger.newErrorId();
   logger.error("Unhandled error", {
-    status,
+    status: finalStatus,
     errorId,
     error: err instanceof Error ? err : undefined,
     path: _req.path,
@@ -35,5 +38,5 @@ export const errorHandler = (
   });
 
   // Client gets the safe message + correlation id, never the stack.
-  res.status(status).json({ error: message, errorId });
+  res.status(finalStatus).json({ error: message, errorId });
 };
