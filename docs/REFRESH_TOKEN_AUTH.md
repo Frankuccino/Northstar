@@ -73,6 +73,14 @@ Follow Bulletproof React feature structure under `northstar-web/src/features/aut
 - Verified by `tests/auth.test.ts`: short password (400) and all-letter password (400) rejected with validation error; valid registration still 201.
 - `tests/employees.test.ts` fixtures updated to compliant passwords (`123456` → `AdminPass1`/`UserPass1`/`Manager123`); `cleanup()` now also deletes the manager user so stale weak-password rows from prior runs can't poison re-registration.
 
+## Defect [B] — DONE (this session)
+- The `Role` union (`"admin" | "manager" | "employee"`) was already centralized in `src/types/role.ts` (backend) and mirrored in `northstar-web/src/types/role.ts` (frontend), each with a `ROLES` array + `isRole` guard, and backed by a DB check constraint in `db/schema/users.ts`. The original "[B] type says user" note was stale — no `user` role ever existed.
+- Real remaining gap closed: the **untrusted token boundary** bypassed the guard with a raw `as Role` cast. Fixed at both edges:
+  - `src/lib/tokens.ts` `verifyAccessToken` now coerces the decoded `role` through `isRole`, defaulting to least-privilege `"employee"` instead of trusting the cast. This is the single deserialization point feeding `req.user.role`.
+  - `northstar-web/src/features/auth/hooks/use-current-user.ts` now validates the decoded role via `isRole` (fallback `"employee"`) instead of `as Role`.
+- `tests/role-parity.test.ts` (new) fails the build if the backend and frontend `ROLES` arrays ever drift — the real risk of a hand-synced mirror across two packages.
+- Verified: full suite 46 passed; backend tsc + frontend vite builds clean.
+
 ## Defect [G] — DONE (this session)
 - `src/lib/logger.ts` (new) — zero-dependency structured logger with levels (debug/info/warn/error), ISO timestamps, and JSON output in production / pretty lines in dev. Respects `LOG_LEVEL` (default `info`) and `NODE_ENV`. Errors go to stderr; the stack is captured only as server-side structured metadata, never in the message.
 - `src/middleware/error.middleware.ts` — replaced `console.error(err)` with `logger.error("Unhandled error", { status, errorId, path, method, error })`. The client response now carries a correlation `errorId` (UUID) and explicitly omits the stack trace.
@@ -89,4 +97,3 @@ Follow Bulletproof React feature structure under `northstar-web/src/features/aut
 - Manual: login → inspect `Set-Cookie` (httpOnly, secure, sameSite=strict) → call `/auth/refresh` without body → new access token → call `/auth/logout` → refresh with old token → 401.
 
 ## Out of Scope (follow-up)
-- Defect [B] role union centralization (admin|manager|employee vs type says user) — see `docs/WORKSPACE_AI_KANBAN.md`; the board needs this first.
