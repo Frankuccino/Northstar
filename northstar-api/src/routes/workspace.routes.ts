@@ -22,6 +22,7 @@ import {
   validateSuggestionHandler,
   markValidatedHandler,
   approveCommitHandler,
+  deleteTaskHandler,
 } from "../controllers/workspace.controller.js";
 
 const router = Router();
@@ -79,5 +80,9 @@ router.post(
   validate(approveCommitSchema),
   approveCommitHandler,
 );
+
+// Delete is gated server-side by canDeleteTask (admin/manager today; per-board
+// ABAC later). The route is authenticated; authority is never client-supplied.
+router.delete("/tasks/:id", deleteTaskHandler);
 
 export default router;

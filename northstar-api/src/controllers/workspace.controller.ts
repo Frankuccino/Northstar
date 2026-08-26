@@ -11,6 +11,7 @@ import {
   validateSuggestion,
   markValidated,
   approveCommit,
+  deleteTask,
 } from "../services/workspace.service.js";
 
 export const createProjectHandler = async (
@@ -152,6 +153,22 @@ export const markValidatedHandler = async (
   try {
     const task = await markValidated(Number(req.params.id));
     res.json(task);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteTaskHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    // `req.user` is the verified AuthPayload (id + role already coerced via
+    // isRole in verifyAccessToken). Deletion authority is decided server-side
+    // by canDeleteTask — never trust a client-supplied role.
+    const deleted = await deleteTask(req.user!, Number(req.params.id));
+    res.json(deleted);
   } catch (err) {
     next(err);
   }

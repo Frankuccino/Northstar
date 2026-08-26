@@ -10,6 +10,7 @@ import {
 } from "../db/schema.js";
 import type { TaskStatus } from "../types/task-status.js";
 import { assertTransition, canTransition, wipLimitFor } from "./workspace/state-machine.js";
+import { canDeleteTask, type Actor } from "./workspace/access.js";
 import { aiProvider, type SuggestionType as AiSuggestionType } from "../lib/ai/provider.js";
 
 // ---- Projects -------------------------------------------------------------
@@ -96,6 +97,22 @@ export const moveTask = async (taskId: number, to: TaskStatus) => {
     .where(eq(tasks.id, taskId))
     .returning();
   return updated;
+};
+
+// Delete is gated by the board-scoped permission helper. The helper's signature
+// already takes (actor, projectId) so the future per-board ABAC model can swap
+// its body without touching this call site (see docs/BOARD_ACCESS_MODEL.md).
+export const deleteTask = async (actor: Actor, taskId: number) => {
+  const [task] = await db.select().from(tasks).where(eq(tasks.id, taskId));
+  if (!task) throw new Error("Task not found");
+
+  const allowed = await canDeleteTask(actor, task.projectId);
+  if (!allowed) {
+    throw new Error("Forbidden: insufficient permission to delete this task");
+  }
+
+  await db.delete(tasks).where(eq(tasks.id, taskId));
+  return { id: taskId };
 };
 
 // ---- AI suggestions (versioned, async-ready) ------------------------------
