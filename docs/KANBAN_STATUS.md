@@ -41,6 +41,12 @@ below) are explicit scope decisions, not shortfalls.
 
 ## Missing (not yet implemented)
 
+- **Task deletion** — DONE this session: `DELETE /workspace/tasks/:id` with a
+  server-side `canDeleteTask(actor, projectId)` guard (admin/manager today;
+  signature is future-proof for per-board ABAC). Frontend delete button in the
+  task side-panel, role-gated (UX only — server returns 403 otherwise). See
+  `docs/BOARD_ACCESS_MODEL.md` for the planned per-board ownership/ABAC model.
+
 - **Filters / swimlanes** — no filtering by assignee, label, or type; no
   swimlanes.
 - **Metrics** — no lead-time / cycle-time / throughput tracking.
