@@ -6,11 +6,13 @@ import { users, projects, tasks, aiSuggestions, taskValidations } from "../src/d
 import { eq } from "drizzle-orm";
 
 const TEST_EMAIL = "workspace.test@example.com";
+const EMP_EMAIL = "workspace.emp@example.com";
 const TEST_PASSWORD = "password123";
 const TEST_NAME = "Workspace Test";
 
 async function cleanup() {
   await db.delete(users).where(eq(users.email, TEST_EMAIL)).catch(() => {});
+  await db.delete(users).where(eq(users.email, EMP_EMAIL)).catch(() => {});
   await db.delete(projects).where(eq(projects.name, "WS Test Project")).catch(() => {});
 }
 
@@ -25,6 +27,17 @@ async function authToken(): Promise<string> {
   const login = await request(app)
     .post("/auth/login")
     .send({ email: TEST_EMAIL, password: TEST_PASSWORD });
+  return login.body.token;
+}
+
+// Register and log in as the default role (employee) — no promotion.
+async function employeeToken(): Promise<string> {
+  await request(app)
+    .post("/auth/register")
+    .send({ email: EMP_EMAIL, password: TEST_PASSWORD, name: "Emp" });
+  const login = await request(app)
+    .post("/auth/login")
+    .send({ email: EMP_EMAIL, password: TEST_PASSWORD });
   return login.body.token;
 }
 
@@ -235,5 +248,51 @@ describe("workspace state machine (server-authoritative)", () => {
       .send({ message: "ship it" });
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/validation error/i);
+  });
+});
+
+describe("DELETE /workspace/tasks/:id (defect [Y] foundation)", () => {
+  afterEach(cleanup);
+  beforeEach(cleanup);
+
+  it("allows an admin to delete a task (200)", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "WS Test Project" });
+    const projectId = project.body.id;
+    const task = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Task A" });
+    const taskId = task.body.id;
+
+    const res = await request(app)
+      .delete(`/workspace/tasks/${taskId}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(taskId);
+  });
+
+  it("forbids an employee from deleting a task (403)", async () => {
+    const admin = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${admin}`)
+      .send({ name: "WS Test Project" });
+    const projectId = project.body.id;
+    const task = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${admin}`)
+      .send({ title: "Task A" });
+    const taskId = task.body.id;
+
+    const empToken = await employeeToken();
+    const res = await request(app)
+      .delete(`/workspace/tasks/${taskId}`)
+      .set("Authorization", `Bearer ${empToken}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/forbidden/i);
   });
 });
