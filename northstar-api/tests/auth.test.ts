@@ -22,7 +22,12 @@ describe("POST /auth/register", () => {
   it("should register a new user (201)", async () => {
     const res = await request(app)
       .post("/auth/register")
-      .send({ email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME });
+      .send({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+        confirmPassword: TEST_PASSWORD,
+        name: TEST_NAME,
+      });
 
     expect(res.status).toBe(201);
     expect(res.body.email).toBe(TEST_EMAIL);
@@ -32,11 +37,21 @@ describe("POST /auth/register", () => {
   it("should reject duplicate email (400)", async () => {
     await request(app)
       .post("/auth/register")
-      .send({ email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME });
+      .send({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+        confirmPassword: TEST_PASSWORD,
+        name: TEST_NAME,
+      });
 
     const res = await request(app)
       .post("/auth/register")
-      .send({ email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME });
+      .send({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+        confirmPassword: TEST_PASSWORD,
+        name: TEST_NAME,
+      });
 
     expect(res.status).toBe(400);
   });
@@ -44,7 +59,12 @@ describe("POST /auth/register", () => {
   it("should reject a password shorter than 8 chars (400, defect [D])", async () => {
     const res = await request(app)
       .post("/auth/register")
-      .send({ email: TEST_EMAIL, password: "short", name: TEST_NAME });
+      .send({
+        email: TEST_EMAIL,
+        password: "short",
+        confirmPassword: "short",
+        name: TEST_NAME,
+      });
 
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/validation error/i);
@@ -53,10 +73,47 @@ describe("POST /auth/register", () => {
   it("should reject a password with no number (400, defect [D])", async () => {
     const res = await request(app)
       .post("/auth/register")
-      .send({ email: TEST_EMAIL, password: "allletters", name: TEST_NAME });
+      .send({
+        email: TEST_EMAIL,
+        password: "allletters",
+        confirmPassword: "allletters",
+        name: TEST_NAME,
+      });
 
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/validation error/i);
+  });
+
+  it("should reject mismatched password and confirmPassword (400)", async () => {
+    const res = await request(app)
+      .post("/auth/register")
+      .send({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+        confirmPassword: "DifferentPass1",
+        name: TEST_NAME,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/validation error/i);
+    const issue = res.body.errors?.find(
+      (e: any) => Array.isArray(e.path) && e.path.includes("confirmPassword"),
+    );
+    expect(issue?.message).toMatch(/do not match/i);
+  });
+
+  it("should accept matching password and confirmPassword (201)", async () => {
+    const res = await request(app)
+      .post("/auth/register")
+      .send({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+        confirmPassword: TEST_PASSWORD,
+        name: TEST_NAME,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.email).toBe(TEST_EMAIL);
   });
 });
 
@@ -64,7 +121,12 @@ describe("POST /auth/login", () => {
   beforeEach(async () => {
     await request(app)
       .post("/auth/register")
-      .send({ email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME });
+      .send({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+        confirmPassword: TEST_PASSWORD,
+        name: TEST_NAME,
+      });
   });
 
   afterEach(cleanup);
@@ -99,7 +161,12 @@ describe("GET /auth/me", () => {
   it("should return user with valid token (200)", async () => {
     await request(app)
       .post("/auth/register")
-      .send({ email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME });
+      .send({
+        email: TEST_EMAIL,
+        password: TEST_PASSWORD,
+        confirmPassword: TEST_PASSWORD,
+        name: TEST_NAME,
+      });
 
     const login = await request(app)
       .post("/auth/login")
@@ -119,7 +186,12 @@ describe("GET /auth/me", () => {
 async function registerAndLogin(agent = request(app)) {
   await agent
     .post("/auth/register")
-    .send({ email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME });
+    .send({
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+      confirmPassword: TEST_PASSWORD,
+      name: TEST_NAME,
+    });
   return agent
     .post("/auth/login")
     .send({ email: TEST_EMAIL, password: TEST_PASSWORD });
