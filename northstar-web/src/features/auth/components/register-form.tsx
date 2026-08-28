@@ -95,6 +95,27 @@ export const RegisterForm = () => {
         <FieldError id="password-error" message={errors.password?.message} />
       </div>
 
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="confirmPassword">Confirm password</Label>
+        <Input
+          id="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          placeholder="Re-enter your password"
+          disabled={isPending}
+          aria-invalid={errors.confirmPassword ? true : undefined}
+          aria-describedby={
+            errors.confirmPassword ? "confirmPassword-error" : undefined
+          }
+          className="border"
+          {...register("confirmPassword")}
+        />
+        <FieldError
+          id="confirmPassword-error"
+          message={errors.confirmPassword?.message}
+        />
+      </div>
+
       <Button type="submit" disabled={isPending} className="mt-2 w-full">
         {isPending ? "Creating account..." : "Create account"}
       </Button>

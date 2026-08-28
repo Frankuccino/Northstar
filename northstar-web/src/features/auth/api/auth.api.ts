@@ -13,7 +13,9 @@ export const login = async (data: LoginPayload): Promise<AuthResponse> => {
 };
 
 export const register = async (data: RegisterPayload) => {
-  const response = await api.post("/auth/register", data);
+  // confirmPassword is frontend-only validation; the API does not accept it.
+  const { confirmPassword: _confirm, ...payload } = data;
+  const response = await api.post("/auth/register", payload);
 
   return response.data;
 };
