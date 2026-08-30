@@ -69,8 +69,8 @@ Follow Bulletproof React feature structure under `northstar-web/src/features/aut
 ## Defect [D] — DONE (this session)
 - `src/schemas/auth.schema.ts` (new) enforces server-side registration validation: `name` (1–120), `email` (valid + ≤254), `password` (8–128 chars, must contain a letter AND a digit — passwords are NOT trimmed, as whitespace is part of the secret).
 - `src/routes/auth.routes.ts` applies `validate(registerSchema)` to `POST /register` (consistent with the workspace routes' validate convention). The controller is unchanged — it still reads `email/password/name` from the body; zod rejects malformed input before it reaches the service.
-- `confirmPassword` is intentionally NOT required yet: the frontend `RegisterPayload` does not send it (the confirm-password field is still pending in `RegisterForm`). When that field lands, add `confirmPassword` + a superRefine equality check to `registerSchema`.
-- Verified by `tests/auth.test.ts`: short password (400) and all-letter password (400) rejected with validation error; valid registration still 201.
+- `confirmPassword` IS now required and validated (defect [D] completion): `registerSchema` (backend) and `register-schema.ts` (frontend) both enforce `password === confirmPassword` via `.refine`, with the error path on `confirmPassword`. The `confirmPassword` field is stripped before the controller consumes the body (`toRegisterInput`), so it never reaches user creation. The frontend `RegisterPayload` and `RegisterForm` now send/show it; `auth.api.ts` omits it from the request payload.
+- Verified by `tests/auth.test.ts`: short password (400), all-letter password (400), **mismatched password/confirmPassword (400)** rejected with validation error; valid + matching registration still 201.
 - `tests/employees.test.ts` fixtures updated to compliant passwords (`123456` → `AdminPass1`/`UserPass1`/`Manager123`); `cleanup()` now also deletes the manager user so stale weak-password rows from prior runs can't poison re-registration.
 
 ## Defect [B] — DONE (this session)
