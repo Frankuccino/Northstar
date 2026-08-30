@@ -22,7 +22,12 @@ async function cleanup() {
 async function authToken(): Promise<string> {
   await request(app)
     .post("/auth/register")
-    .send({ email: TEST_EMAIL, password: TEST_PASSWORD, name: TEST_NAME });
+    .send({
+      email: TEST_EMAIL,
+      password: TEST_PASSWORD,
+      confirmPassword: TEST_PASSWORD,
+      name: TEST_NAME,
+    });
   await db.update(users).set({ role: "admin" }).where(eq(users.email, TEST_EMAIL));
   const login = await request(app)
     .post("/auth/login")
@@ -34,7 +39,12 @@ async function authToken(): Promise<string> {
 async function employeeToken(): Promise<string> {
   await request(app)
     .post("/auth/register")
-    .send({ email: EMP_EMAIL, password: TEST_PASSWORD, name: "Emp" });
+    .send({
+      email: EMP_EMAIL,
+      password: TEST_PASSWORD,
+      confirmPassword: TEST_PASSWORD,
+      name: "Emp",
+    });
   const login = await request(app)
     .post("/auth/login")
     .send({ email: EMP_EMAIL, password: TEST_PASSWORD });

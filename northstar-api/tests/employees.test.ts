@@ -8,12 +8,14 @@ import { eq } from "drizzle-orm";
 const TEST_ADMIN = {
   email: "admin@test.com",
   password: "AdminPass1",
+  confirmPassword: "AdminPass1",
   name: "Admin",
 };
 
 const TEST_USER = {
   email: "user@test.com",
   password: "UserPass1",
+  confirmPassword: "UserPass1",
   name: "User",
 };
 
@@ -50,6 +52,7 @@ async function createUserAndLogin(): Promise<string> {
   await request(app).post("/auth/register").send({
     email: TEST_USER.email,
     password: TEST_USER.password,
+    confirmPassword: TEST_USER.password,
     name: TEST_USER.name,
   });
   const login = await request(app).post("/auth/login").send({
@@ -63,6 +66,7 @@ async function createManagerAndLogin(): Promise<string> {
   await request(app).post("/auth/register").send({
     email: "manager.test@example.com",
     password: TEST_PASSWORD,
+    confirmPassword: TEST_PASSWORD,
     name: "Manager",
   });
   await db
