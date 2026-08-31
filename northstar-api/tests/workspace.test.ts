@@ -306,3 +306,40 @@ describe("DELETE /workspace/tasks/:id (defect [Y] foundation)", () => {
     expect(res.body.error).toMatch(/forbidden/i);
   });
 });
+
+describe("GET /workspace/:id/tasks — assignee name (defect display)", () => {
+  afterEach(cleanup);
+  beforeEach(cleanup);
+
+  it("returns assigneeName for an assigned task, null when unassigned", async () => {
+    const token = await authToken();
+    const [me] = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(eq(users.email, TEST_EMAIL));
+
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "WS Test Project" });
+    const projectId = project.body.id;
+
+    const assigned = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Assigned", assigneeId: me.id });
+    const unassigned = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Unassigned" });
+
+    const res = await request(app)
+      .get(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    const byId = new Map((res.body as any[]).map((t: any) => [t.id, t]));
+    expect(byId.get(assigned.body.id).assigneeName).toBe(me.name);
+    expect(byId.get(unassigned.body.id).assigneeName).toBeNull();
+  });
+});
