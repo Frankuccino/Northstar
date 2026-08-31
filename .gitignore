@@ -12,3 +12,7 @@ dist
 drizzle
 
 *.db
+
+# Live auth tokens (NEVER commit — contains refresh tokens)
+cookies.txt
+*.cookie
