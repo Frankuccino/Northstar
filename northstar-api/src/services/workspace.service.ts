@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import {
   projects,
   tasks,
+  users,
   aiSuggestions,
   taskValidations,
   commitRecords,
@@ -73,8 +74,25 @@ export const createTask = async (
   return task;
 };
 
+// Returns tasks for a project with the assignee's display name joined in
+// (assigneeName is null when unassigned). LEFT JOIN because assigneeId is
+// nullable; the name surfaces on the board card without a second round-trip.
 export const getTasksByProject = async (projectId: number) =>
-  db.select().from(tasks).where(eq(tasks.projectId, projectId));
+  db
+    .select({
+      id: tasks.id,
+      projectId: tasks.projectId,
+      title: tasks.title,
+      description: tasks.description,
+      status: tasks.status,
+      assigneeId: tasks.assigneeId,
+      assigneeName: users.name,
+      createdAt: tasks.createdAt,
+      updatedAt: tasks.updatedAt,
+    })
+    .from(tasks)
+    .leftJoin(users, eq(tasks.assigneeId, users.id))
+    .where(eq(tasks.projectId, projectId));
 
 // Server-authoritative move. Rejects illegal transitions; the UI cannot
 // launder a card into an invalid state.
