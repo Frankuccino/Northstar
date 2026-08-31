@@ -53,8 +53,11 @@ below) are explicit scope decisions, not shortfalls.
 - **Card ordering** — tasks within a column are unordered (no priority sort
   or manual reorder within a column).
 - **Bulk / multi-select actions** — no way to move or act on several cards at once.
-- **Assignee display on card** — `assigneeId` exists in the data model but is
-  not shown on the card face.
+- **Assignee display on card** — DONE this session: `GET /workspace/:id/tasks`
+  LEFT JOINs `users` and returns `assigneeName` (null when unassigned); the
+  board card renders an initials + name badge. Backend change only — no new
+  endpoint. Note: there is still no UI to *set* an assignee (separate feature);
+  the field is populated only when a task is created with `assigneeId`.
 
 ## Deferred by design (explicit scope, per docs)
 
@@ -77,8 +80,8 @@ below) are explicit scope decisions, not shortfalls.
    for tests) and needs wiring. See `next-steps.md`.
 2. **Filters / swimlanes** — filter the board by assignee or type; cheap win
    for usability now that WIP makes column load visible.
-3. **Assignee on card face** — surface `assigneeId` so the board is usable for
-   real work assignment.
+3. **Assignee assignment UI** — set `assigneeId` from the task panel (the card
+   now *displays* it; there is no way to *choose* an assignee yet).
 
 ## Related docs
 - `WORKSPACE_AI_KANBAN.md` — domain model, AI trust gate, invariants.
