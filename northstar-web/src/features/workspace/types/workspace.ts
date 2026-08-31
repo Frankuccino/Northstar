@@ -77,6 +77,7 @@ export interface Task {
   description: string | null;
   status: TaskStatus;
   assigneeId: number | null;
+  assigneeName: string | null;
   createdAt: string;
   updatedAt: string;
 }

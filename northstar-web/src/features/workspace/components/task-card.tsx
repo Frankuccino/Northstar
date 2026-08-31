@@ -14,6 +14,13 @@ const SUGGESTION_BADGE: Record<SuggestionType, string> = {
   commit_guidance: "Commit",
 };
 
+// "Jane Doe" -> "JD"; "jane" -> "JA" (fallback to first 2 chars).
+const initials = (name: string): string => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
 interface TaskCardProps {
   task: Task;
   suggestionTypes: SuggestionType[];
@@ -38,6 +45,13 @@ export const TaskCard = ({ task, suggestionTypes, onOpen }: TaskCardProps) => {
       <p className="mt-1 text-xs text-muted-foreground">
         {COLUMN_LABELS[task.status]}
       </p>
+
+      {task.assigneeName && (
+        <p className="mt-1 text-xs font-medium text-foreground/70">
+          {initials(task.assigneeName)}
+          <span className="ml-1 text-muted-foreground">{task.assigneeName}</span>
+        </p>
+      )}
 
       {suggestionTypes.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">

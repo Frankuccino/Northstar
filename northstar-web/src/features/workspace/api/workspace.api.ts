@@ -32,6 +32,7 @@ const toTask = (r: any): Task => ({
   description: r.description ?? null,
   status: r.status as TaskStatus,
   assigneeId: r.assignee_id ?? null,
+  assigneeName: r.assignee_name ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
