@@ -220,23 +220,26 @@ function buildEmployees(): SeedEmployee[] {
 }
 
 async function seed() {
-  console.log("🗑️ Clearing existing database tables...");
-
-  // 1. Delete dependent child data first to prevent foreign key constraint errors
-  await db.delete(employees);
-  await db.delete(users);
-
-  // 2. Optional: Reset the auto-incrementing serial IDs back to 1
-  // Drizzle requires raw SQL for sequence resetting because it varies by database engine
-  await db.execute(sql`ALTER SEQUENCE users_id_seq RESTART WITH 1;`);
-  await db.execute(sql`ALTER SEQUENCE employees_id_seq RESTART WITH 1;`);
-
   const pepper = process.env.PASSWORD_PEPPER;
   if (!pepper) {
     throw new Error("Server configuration error: Pepper missing for seeding.");
   }
 
-  console.log("🌱 Database wiped. Starting fresh unique salting...");
+  // Destructive reset is opt-in via RESEED=true so `db:seed` is safe to run on
+  // every deploy (it becomes an idempotent insert). Without it, existing rows
+  // are preserved and only missing seed rows are added — never deleted.
+  if (process.env.RESEED === "true") {
+    console.log("🗑️ Clearing existing database tables (RESEED=true)...");
+    await db.delete(employees);
+    await db.delete(users);
+    await db.execute(sql`ALTER SEQUENCE users_id_seq RESTART WITH 1;`);
+    await db.execute(sql`ALTER SEQUENCE employees_id_seq RESTART WITH 1;`);
+    console.log("🌱 Database wiped. Starting fresh unique salting...");
+  } else {
+    console.log(
+      "♻️ RESEED not set — preserving existing data; inserting missing rows only.",
+    );
+  }
 
   // 3. Run bcrypt independently for every user inside a Promise.all block
   const usersWithUniqueHashes = await Promise.all(
