@@ -12,6 +12,8 @@ import {
   markValidated,
   approveCommit,
   deleteTask,
+  assignTask,
+  getAssignableUsers,
 } from "../services/workspace.service.js";
 
 export const createProjectHandler = async (
@@ -58,14 +60,14 @@ export const createTaskHandler = async (
   next: NextFunction,
 ) => {
   try {
-  const { title, description, assigneeId } = req.body;
-  const task = await createTask(
-    Number(req.params.id),
-    title,
-    description,
-    assigneeId,
-  );
-  res.status(201).json(task);
+    const { title, description, assigneeId } = req.body;
+    const task = await createTask(
+      Number(req.params.id),
+      title,
+      description,
+      assigneeId,
+    );
+    res.status(201).json(task);
   } catch (err) {
     next(err);
   }
@@ -90,6 +92,25 @@ export const moveTaskHandler = async (
 ) => {
   try {
     const task = await moveTask(Number(req.params.id), req.body.status);
+    res.json(task);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const assignTaskHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { assigneeId } = req.body;
+    const actorId = req.user!.id;
+    const task = await assignTask(
+      Number(req.params.id),
+      actorId,
+      assigneeId,
+    );
     res.json(task);
   } catch (err) {
     next(err);
@@ -189,6 +210,18 @@ export const approveCommitHandler = async (
       approvedBy,
     );
     res.status(201).json(record);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getAssignableUsersHandler = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    res.json(await getAssignableUsers());
   } catch (err) {
     next(err);
   }

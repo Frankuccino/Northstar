@@ -6,6 +6,7 @@ import {
   createProjectSchema,
   createTaskSchema,
   moveTaskSchema,
+  assignTaskSchema,
   generateSuggestionSchema,
   validateSuggestionSchema,
   approveCommitSchema,
@@ -17,12 +18,14 @@ import {
   createTaskHandler,
   listTasksHandler,
   moveTaskHandler,
+  assignTaskHandler,
   generateSuggestionHandler,
   listSuggestionsHandler,
   validateSuggestionHandler,
   markValidatedHandler,
   approveCommitHandler,
   deleteTaskHandler,
+  getAssignableUsersHandler,
 } from "../controllers/workspace.controller.js";
 
 const router = Router();
@@ -38,6 +41,12 @@ router.post(
   validate(createProjectSchema),
   createProjectHandler,
 );
+
+// Auth users available for assignment. Returns { id, name }[] for the assignee
+// picker. Today returns all authenticated users — filtering to project members
+// lands with the [Y] model without changing the frontend call site.
+router.get("/users", getAssignableUsersHandler);
+
 router.get("/:id", getProjectHandler);
 
 // Tasks: any authed user can view; create is admin/manager.
@@ -54,6 +63,16 @@ router.patch(
   "/tasks/:id/move",
   validate(moveTaskSchema),
   moveTaskHandler,
+);
+
+// Reassign a card's assignee. Today any authenticated user may reassign to any
+// user (the unconstrained v1) — the per-board invite constraint lands with the
+// [Y] model. Task not found → 404; the body is validated by assignTaskSchema
+// (assigneeId may be null to clear the assignee).
+router.patch(
+  "/tasks/:id/assign",
+  validate(assignTaskSchema),
+  assignTaskHandler,
 );
 
 // AI suggestions: generation is admin/manager; listing is any authed user.

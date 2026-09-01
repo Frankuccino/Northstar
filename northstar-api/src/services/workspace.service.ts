@@ -270,3 +270,35 @@ export const approveCommit = async (
   await moveTask(taskId, "done");
   return record;
 };
+
+// ---- Assignee ----------------------------------------------------------------
+// Reassigns `taskId` to `assigneeId` (null clears the assignee). The actor is
+// recorded so a future audit/ABAC gate (e.g. only assign to project invitees)
+// can be added without changing this signature or the route. The policy today is
+// unconstrained: any authenticated user may reassign a task to any user. See
+// docs/BOARD_ACCESS_MODEL.md for the planned per-board model.
+export const assignTask = async (
+  taskId: number,
+  _actorId: number,
+  assigneeId: number | null,
+) => {
+  const [task] = await db
+    .select()
+    .from(tasks)
+    .where(eq(tasks.id, taskId));
+  if (!task) throw new Error("Task not found");
+
+  const [updated] = await db
+    .update(tasks)
+    .set({ assigneeId })
+    .where(eq(tasks.id, taskId))
+    .returning();
+  return updated;
+};
+
+// Auth users available for assignment. Today this returns all authenticated
+// users (no board-membership filter yet — that lands with the [Y] model). Used
+// by the assignee picker; the route will be filtered to project members later
+// without changing the frontend call site.
+export const getAssignableUsers = async () =>
+  db.select({ id: users.id, name: users.name }).from(users);
