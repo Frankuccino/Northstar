@@ -343,3 +343,105 @@ describe("GET /workspace/:id/tasks — assignee name (defect display)", () => {
     expect(byId.get(unassigned.body.id).assigneeName).toBeNull();
   });
 });
+
+describe("GET /workspace/users — assignable users", () => {
+  afterEach(cleanup);
+  beforeEach(cleanup);
+
+  it("returns { id, name }[] for authenticated users", async () => {
+    const token = await authToken();
+    const [admin, ...rest] = await db
+      .select({ id: users.id, name: users.name })
+      .from(users);
+    const res = await request(app)
+      .get("/workspace/users")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    // admin + any seeded users present
+    const byId = new Map((res.body as any[]).map((u: any) => [u.id, u]));
+    expect(byId.has(admin.id)).toBe(true);
+    expect(byId.get(admin.id)).toEqual({ id: admin.id, name: admin.name });
+  });
+});
+
+describe("PATCH /workspace/tasks/:id/assign", () => {
+  afterEach(cleanup);
+  beforeEach(cleanup);
+
+  it("reassigns a task to another user (200)", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Assign Project" });
+    const projectId = project.body.id;
+
+    const me = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, TEST_EMAIL))
+      .limit(1);
+    const meId = (me[0] as any)?.id;
+    expect(meId).toBeTruthy();
+
+    const other = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, TEST_EMAIL))
+      .limit(2);
+    const otherId = (other[1] as any)?.id ?? meId;
+
+    const task = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Assignable task" });
+    const taskId = task.body.id;
+
+    const res = await request(app)
+      .patch(`/workspace/tasks/${taskId}/assign`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ assigneeId: otherId });
+    expect(res.status).toBe(200);
+    expect(res.body.assigneeId).toBe(otherId);
+  });
+
+  it("clears the assignee when assigneeId is null (200)", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Clear Assign Project" });
+    const projectId = project.body.id;
+
+    const me = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, TEST_EMAIL))
+      .limit(1);
+    const meId = (me[0] as any)?.id;
+
+    const task = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Unassignable task", assigneeId: meId });
+    const taskId = task.body.id;
+
+    const res = await request(app)
+      .patch(`/workspace/tasks/${taskId}/assign`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ assigneeId: null });
+    expect(res.status).toBe(200);
+    expect(res.body.assigneeId).toBeNull();
+  });
+
+  it("returns 404 for a nonexistent task", async () => {
+    const token = await authToken();
+    const res = await request(app)
+      .patch("/workspace/tasks/999999/assign")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ assigneeId: 1 });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found/i);
+  });
+});
