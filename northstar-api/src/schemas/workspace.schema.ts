@@ -18,6 +18,10 @@ export const moveTaskSchema = z.object({
   status: z.enum(TASK_STATUSES),
 });
 
+export const assignTaskSchema = z.object({
+  assigneeId: z.number().int().positive().nullable(),
+});
+
 export const generateSuggestionSchema = z.object({
   type: z.enum(["context", "approach", "checklist", "draft", "commit_guidance"]),
 });
