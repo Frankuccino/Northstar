@@ -3,6 +3,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTaskSuggestions } from "../hooks/use-task-suggestions";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
 import {
@@ -11,8 +18,10 @@ import {
   approveCommit,
   markValidated,
   deleteTask,
+  getAssignableUsers,
+  assignTask,
 } from "../api/workspace.api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
 import {
   COLUMN_LABELS,
@@ -106,6 +115,33 @@ export const TaskDetail = ({
     onError: (e: any) => setError(e?.response?.data?.error ?? "Delete failed"),
   });
 
+  // ---- Assignee picker -----------------------------------------------------
+  const { data: users, isLoading: usersLoading } = useQuery({
+    queryKey: workspaceKeys.assignableUsers(),
+    queryFn: getAssignableUsers,
+    enabled: open,
+  });
+
+  const assignMut = useMutation({
+    mutationFn: (assigneeId: number | null) => assignTask(task.id, assigneeId),
+    onSuccess: () => {
+      invalidate();
+      setError(null);
+    },
+    onError: (e: any) =>
+      setError(e?.response?.data?.error ?? "Failed to update assignee"),
+  });
+
+  const clearAssignee = () => assignMut.mutate(null);
+  const setAssignee = (id: number) => assignMut.mutate(id);
+
+  const unassignedOption: { id: string; name: string } = { id: "", name: "Unassigned" };
+  const userOptions: { id: string; name: string }[] = (users ?? []).map((u) => ({
+    id: String(u.id),
+    name: u.name,
+  }));
+  const allOptions = [unassignedOption, ...userOptions];
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
@@ -147,6 +183,7 @@ export const TaskDetail = ({
                       >
                         Accept
                       </Button>
+
                       <Button
                         size="sm"
                         variant="outline"
@@ -191,6 +228,33 @@ export const TaskDetail = ({
             onChange={(e) => setReason(e.target.value)}
             placeholder="Why accept / reject / edit?"
           />
+        </section>
+
+        {/* ---- Assignee picker ------------------------------------------------- */}
+        <section className="border-t pt-3">
+          <h4 className="mb-2 text-sm font-semibold">Assignee</h4>
+          {usersLoading && users === undefined ? (
+            <p className="text-sm text-muted-foreground">Loading assignees…</p>
+          ) : (
+            <Select
+              value={String(task.assigneeId ?? "")}
+              onValueChange={(v) => {
+                if (v === "") clearAssignee();
+                else setAssignee(Number(v));
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Pick an assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                {allOptions.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </section>
 
         <section className="border-t pt-3">

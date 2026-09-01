@@ -140,6 +140,22 @@ export const markValidated = async (taskId: number): Promise<Task> => {
   return toTask(res.data);
 };
 
+// Assignee ----------------------------------------------------------------
+// Reassigns a task's assignee. Fetches assignable users from
+// GET /workspace/users (id + name). Clears the assignee when null is passed.
+export const getAssignableUsers = async (): Promise<{ id: number; name: string }[]> => {
+  const res = await api.get("/workspace/users");
+  return res.data;
+};
+
+export const assignTask = async (
+  taskId: number,
+  assigneeId: number | null,
+): Promise<Task> => {
+  const res = await api.patch(`/workspace/tasks/${taskId}/assign`, { assigneeId });
+  return toTask(res.data);
+};
+
 // Delete is server-gated by canDeleteTask (admin/manager today). The UI button
 // is shown only for those roles as a UX hint, but the server makes the final
 // decision — a non-privileged user's request is rejected with 403.
