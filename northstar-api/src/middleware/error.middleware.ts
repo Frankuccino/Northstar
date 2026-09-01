@@ -13,17 +13,21 @@ export const errorHandler = (
 ) => {
   const message = err instanceof Error ? err.message : "Unknown error";
 
-  // Illegal state-machine transitions, missing entities, WIP-cap breaches, etc.
+  // "Not found" is semantically a 404, not a generic 400 (missing entities,
+  // etc.). Forbidden (403) and validation/client errors (400) are separate.
+  const isNotFound = /not found/i.test(message);
+  const isForbidden = /forbidden/i.test(message);
   const isClientError =
-    /not found/i.test(message) ||
     /illegal task transition/i.test(message) ||
     /wip limit/i.test(message) ||
     /cannot commit/i.test(message);
 
-  const status = isClientError ? 400 : 500;
-
-  // Authorization failures (e.g. delete without permission) are 403, not 400.
-  const finalStatus = /forbidden/i.test(message) ? 403 : status;
+  const status = isNotFound
+    ? 404
+    : isClientError
+      ? 400
+      : 500;
+  const finalStatus = isForbidden ? 403 : status;
 
   // [G] Structured logging. The stack is captured server-side only (never sent
   // to the client). A correlation id lets the client relay the exact failure
