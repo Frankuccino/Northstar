@@ -4,22 +4,43 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useProjectTasks } from "../hooks/use-project-tasks";
 import { useTaskSuggestions } from "../hooks/use-task-suggestions";
-import { createTask, moveTask } from "../api/workspace.api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { createTask, moveTask, getAssignableUsers } from "../api/workspace.api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
 import { Board } from "../components/board";
 import { TaskDetail } from "../components/task-detail";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
-import { wipLimitFor } from "../types/workspace";
+import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
 export const ProjectDetailPage = () => {
   const { projectId } = useParams();
   const id = Number(projectId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: tasks, isLoading, error } = useProjectTasks(id);
+
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
+  const [assigneeFilter, setAssigneeFilter] = useState<number | "">("");
+
+  const filters = {
+    ...(statusFilter ? { status: statusFilter as TaskStatus } : {}),
+    ...(assigneeFilter !== "" ? { assigneeId: assigneeFilter as number } : {}),
+  };
+  const { data: tasks, isLoading, error } = useProjectTasks(id, filters);
+
+  const { data: assignableUsers } = useQuery({
+    queryKey: ["assignableUsers", id],
+    queryFn: getAssignableUsers,
+    enabled: id > 0,
+  });
 
   const [title, setTitle] = useState("");
   const [selected, setSelected] = useState<Task | null>(null);
@@ -33,7 +54,7 @@ export const ProjectDetailPage = () => {
     onSuccess: () => {
       setTitle("");
       queryClient.invalidateQueries({
-        queryKey: workspaceKeys.projectTasks(id),
+        queryKey: workspaceKeys.projectTasks(id, filters),
       });
     },
   });
@@ -43,13 +64,19 @@ export const ProjectDetailPage = () => {
       moveTask(taskId, status),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: workspaceKeys.projectTasks(id),
+        queryKey: workspaceKeys.projectTasks(id, filters),
       });
     },
   });
 
   const handleMove = (task: Task, status: TaskStatus) =>
     move.mutate({ taskId: task.id, status });
+
+  const clearFilters = () => {
+    setStatusFilter("");
+    setAssigneeFilter("");
+  };
+  const hasFilters = statusFilter !== "" || assigneeFilter !== "";
 
   if (isLoading) return <p>Loading board…</p>;
   if (error) return <p>Failed to load board.</p>;
@@ -111,6 +138,60 @@ export const ProjectDetailPage = () => {
           a task to add more.
         </p>
       )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-44">
+          <Label htmlFor="status-filter">Status</Label>
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => setStatusFilter(v as TaskStatus)}
+          >
+            <SelectTrigger id="status-filter">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              {BOARD_COLUMNS.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {COLUMN_LABELS[status]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="w-56">
+          <Label htmlFor="assignee-filter">Assignee</Label>
+          <Select
+            value={assigneeFilter === "" ? "unassigned" : String(assigneeFilter)}
+            onValueChange={(v) =>
+              setAssigneeFilter(v === "unassigned" ? "" : Number(v))
+            }
+          >
+            <SelectTrigger id="assignee-filter">
+              <SelectValue placeholder="All assignees" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unassigned">All assignees</SelectItem>
+              {(assignableUsers ?? []).map((u) => (
+                <SelectItem key={u.id} value={String(u.id)}>
+                  {u.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="self-end"
+            onClick={clearFilters}
+          >
+            Clear filters
+          </Button>
+        )}
+      </div>
 
       <Board
         tasks={tasks ?? []}

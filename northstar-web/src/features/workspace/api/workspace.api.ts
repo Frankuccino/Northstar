@@ -81,8 +81,23 @@ export const createProject = async (
 };
 
 // ---- Tasks ----------------------------------------------------------------
-export const getProjectTasks = async (projectId: number): Promise<Task[]> => {
-  const res = await api.get(`/workspace/${projectId}/tasks`);
+export const getProjectTasks = async ({
+  projectId,
+  status,
+  assigneeId,
+}: {
+  projectId: number;
+  status?: TaskStatus;
+  assigneeId?: number | null;
+}): Promise<Task[]> => {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (assigneeId !== undefined)
+    params.set("assigneeId", String(assigneeId ?? "null"));
+  const qs = params.toString();
+  const res = await api.get(
+    `/workspace/${projectId}/tasks${qs ? `?${qs}` : ""}`,
+  );
   return res.data.map(toTask);
 };
 
