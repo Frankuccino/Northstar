@@ -15,6 +15,7 @@ import {
   assignTask,
   getAssignableUsers,
 } from "../services/workspace.service.js";
+import { listTasksQuerySchema } from "../schemas/workspace.schema.js";
 
 export const createProjectHandler = async (
   req: Request,
@@ -79,7 +80,12 @@ export const listTasksHandler = async (
   next: NextFunction,
 ) => {
   try {
-    res.json(await getTasksByProject(Number(req.params.id)));
+    const query = listTasksQuerySchema.parse(req.query);
+    const tasks = await getTasksByProject(Number(req.params.id), {
+      status: query.status,
+      assigneeId: query.assigneeId ?? undefined,
+    });
+    res.json(tasks);
   } catch (err) {
     next(err);
   }

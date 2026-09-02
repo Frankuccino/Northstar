@@ -77,8 +77,18 @@ export const createTask = async (
 // Returns tasks for a project with the assignee's display name joined in
 // (assigneeName is null when unassigned). LEFT JOIN because assigneeId is
 // nullable; the name surfaces on the board card without a second round-trip.
-export const getTasksByProject = async (projectId: number) =>
-  db
+export const getTasksByProject = async (
+  projectId: number,
+  opts?: { status?: TaskStatus; assigneeId?: number | null },
+) => {
+  const conditions = [eq(tasks.projectId, projectId)];
+  if (opts?.status) conditions.push(eq(tasks.status, opts.status));
+  if (opts?.assigneeId !== undefined) {
+    if (opts.assigneeId === null) conditions.push(sql`${tasks.assigneeId} IS NULL`);
+    else conditions.push(eq(tasks.assigneeId, opts.assigneeId));
+  }
+
+  return db
     .select({
       id: tasks.id,
       projectId: tasks.projectId,
@@ -92,7 +102,8 @@ export const getTasksByProject = async (projectId: number) =>
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
-    .where(eq(tasks.projectId, projectId));
+    .where(and(...conditions));
+};
 
 // Server-authoritative move. Rejects illegal transitions; the UI cannot
 // launder a card into an invalid state.

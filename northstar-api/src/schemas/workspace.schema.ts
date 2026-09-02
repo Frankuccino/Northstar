@@ -55,3 +55,8 @@ export const approveCommitSchema = z.object({
   message: z.string().trim().min(1).max(200),
   justification: z.string().trim().min(1).max(1000),
 });
+
+export const listTasksQuerySchema = z.object({
+  status: z.enum(TASK_STATUSES).optional(),
+  assigneeId: z.coerce.number().int().positive().nullable().optional(),
+});
