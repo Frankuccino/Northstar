@@ -67,3 +67,5 @@ If the AI both drafts task content AND authors commit-guidance, what single inva
 - Complements `docs/REFRESH_TOKEN_AUTH.md` (the auth foundation this sits on).
 - Frontend rendering plan: `docs/FRONTEND_IA_AND_UI.md` (page IA + UI primitives).
 - Auth defects [C][F][G][H] from the review still apply and should land alongside/before the board's write paths.
+- Extended by `docs/WORKSPACE_INVITATIONS.md` for formal invite flow.
+- Extended by `docs/WORKSPACE_AI_INTEGRATION.md` for hybrid AI API + in-app chat.

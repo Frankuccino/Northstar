@@ -2,7 +2,7 @@
 
 Live status of the Workspace Kanban board. Use this to see at a glance what is
 implemented, what is missing, and what is intentionally deferred. Updated
-2026-08-20.
+2026-09-02.
 
 Scope note: this board is a *functional, server-authoritative Kanban with an
 AI trust gate* — not full Lean-Kanban. Gaps that are deferred by design (see
@@ -38,26 +38,35 @@ below) are explicit scope decisions, not shortfalls.
   `n/cap` badge per column and greys + disables columns at/over cap, consistent
   with the transition guardrail. Config lives in one place on both sides
   (backend `state-machine.ts` ↔ frontend `types/workspace.ts` mirror).
+- **Assignee display + picker** — `GET /workspace/:id/tasks` LEFT JOINs `users`
+  and returns `assigneeName`; task-detail panel has an assignee `<Select>`
+  listing assignable users. Backend `PATCH /tasks/:id/assign` updates assignee
+  and invalidates board query on success. Tests cover reassign, clear, and
+  nonexistent task → 404.
+- **Board filters** — status + assignee filter bar wired through
+  `GET /workspace/:id/tasks?status=&assigneeId=`; service applies optional
+  filters including nullable assignee via `IS NULL`.
+
+## In progress / designed
+
+- **Formal invitations** — design doc created at `docs/WORKSPACE_INVITATIONS.md`.
+  Planned: invite by email → tokenized accept link → project membership.
+  Supersedes current “all users” assignee picker; not yet implemented.
+- **Hybrid AI integration** — design doc created at `docs/WORKSPACE_AI_INTEGRATION.md`.
+  Planned: shared AI API layer for task CRUD/moves, consumed by in-app chat and
+  external AI clients. Depends on formal invitations for safe assignee actions.
+  Not yet implemented.
 
 ## Missing (not yet implemented)
 
-- **Task deletion** — DONE this session: `DELETE /workspace/tasks/:id` with a
-  server-side `canDeleteTask(actor, projectId)` guard (admin/manager today;
-  signature is future-proof for per-board ABAC). Frontend delete button in the
-  task side-panel, role-gated (UX only — server returns 403 otherwise). See
-  `docs/BOARD_ACCESS_MODEL.md` for the planned per-board ownership/ABAC model.
-
-- **Filters / swimlanes** — no filtering by assignee, label, or type; no
-  swimlanes.
+- **Task deletion UI wiring** — backend `DELETE /workspace/tasks/:id` exists with
+  server-side `canDeleteTask(actor, projectId)`; task panel delete button still
+  needs review/final wiring.
+- **Filters / swimlanes** — board filtering implemented; swimlanes not started.
 - **Metrics** — no lead-time / cycle-time / throughput tracking.
 - **Card ordering** — tasks within a column are unordered (no priority sort
   or manual reorder within a column).
 - **Bulk / multi-select actions** — no way to move or act on several cards at once.
-- **Assignee display on card** — DONE this session: `GET /workspace/:id/tasks`
-  LEFT JOINs `users` and returns `assigneeName` (null when unassigned); the
-  board card renders an initials + name badge. Backend change only — no new
-  endpoint. Note: there is still no UI to *set* an assignee (separate feature);
-  the field is populated only when a task is created with `assigneeId`.
 
 ## Deferred by design (explicit scope, per docs)
 
@@ -68,8 +77,8 @@ below) are explicit scope decisions, not shortfalls.
 
 ## Functional vs. method-faithful assessment
 
-- Functional Kanban UI (what a user touches): ~90% good. Missing ~10% = filters
-  and card ordering; WIP limits now implemented.
+- Functional Kanban UI (what a user touches): ~90% good. Missing ~10% = card
+  ordering, swimlanes, bulk actions; WIP limits implemented.
 - Method-faithful Kanban (WIP + pull + metrics + real-time): ~60%. About half
   of that gap (real-time, metrics) is intentionally deferred (Ep14).
 
@@ -78,13 +87,17 @@ below) are explicit scope decisions, not shortfalls.
 1. **[C] Rate limiting** — the audit defect (login/refresh + workspace write
    paths); scaffold exists (`rate-limit.middleware.ts`, `SKIP_RATE_LIMIT=true`
    for tests) and needs wiring. See `next-steps.md`.
-2. **Filters / swimlanes** — filter the board by assignee or type; cheap win
-   for usability now that WIP makes column load visible.
-3. **Assignee assignment UI** — set `assigneeId` from the task panel (the card
-   now *displays* it; there is no way to *choose* an assignee yet).
+2. **Formal invitations** — implement `docs/WORKSPACE_INVITATIONS.md`; required
+   before AI can safely assign unknown users.
+3. **Hybrid AI integration** — implement `docs/WORKSPACE_AI_INTEGRATION.md`
+   after invitations; starts with AI API layer, then in-app chat.
+4. **Card ordering** — drag-to-reorder within a column via `position` field.
 
 ## Related docs
 - `WORKSPACE_AI_KANBAN.md` — domain model, AI trust gate, invariants.
+- `WORKSPACE_INVITATIONS.md` — formal invite flow design.
+- `WORKSPACE_AI_INTEGRATION.md` — hybrid AI API + in-app chat design.
 - `FRONTEND_IA_AND_UI.md` — page architecture; notes auth defects [C][F][G][H].
 - `REFRESH_TOKEN_AUTH.md` — auth defects [A]–[H] tracking.
+- `next-steps.md` — backend hardening + rate-limit scaffold.
 - `next-steps.md` — backend hardening + rate-limit scaffold.
