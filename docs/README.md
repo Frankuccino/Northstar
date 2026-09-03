@@ -121,3 +121,51 @@ order to avoid rework:
 - After implementing: update the status doc and add any new design notes.
 - Before reviewing: check the terminology above; it is the shared vocabulary.
 - When in doubt: follow the server-authoritative + surgical increment rules.
+
+## Why these docs exist
+
+Northstar is developed in long-running sessions with limited and sliding context windows.
+These docs exist to preserve decision quality across that constraint.
+
+### Bounded context for an AI coding agent
+
+These markdown files act as **intentional context window partitions**.
+Instead of loading the entire project history into every turn, the agent loads
+only the relevant domain doc and executes within that bounded scope.
+
+This matters because AI coding sessions degrade in predictable ways when context
+grows unbounded:
+
+- **Context window regression** — as the conversation grows, earlier decisions,
+  constraints, and terminology get compressed or lost. The agent starts
+  repeating earlier mistakes or contradicting prior decisions.
+- **Attention drift** — without a clear scope, the agent pulls in unrelated
+  concerns from other domains, producing cross-contaminated solutions.
+- **Revision cost escalation** — the longer an undocumened decision lives in
+  context, the more expensive it becomes to correct. By the time the regression
+  is noticed, the change may touch many files.
+- **Inconsistent enforcement** — rules stated once in conversation are not
+  reliably applied later. Docs provide a stable reference that persists across
+  context resets.
+
+### Technical benefits
+
+- **Focused execution** — each doc defines a bounded domain with its own
+  terminology, rules, and sequencing. The agent operates on one domain at a
+  time, which keeps reasoning tight and reduces hallucinated assumptions.
+- **Stable strategy** — architectural decisions are stored once and referenced,
+  not repeated ad hoc. This prevents drift across sessions.
+- **Reduced revision cost** — decisions documented before implementation become
+  the source of truth. Later corrections are usually additions, not rewrites.
+- **Deterministic dependency ordering** — hard dependencies between features are
+  explicit in docs, so the agent doesn’t build in the wrong order or create
+  coupling that requires rework.
+- **Auditable reasoning** — when a decision is questioned, the doc shows the
+  constraints and trade-offs considered, not just the final choice.
+
+### Intended operating mode
+
+Development moves forward as a series of small, domain-scoped steps, each
+anchored to its doc. The docs are the persistent memory; the agent’s context
+window is the working set. This is the intended mode for maintaining high
+velocity with low revision cost in long-running, context-constrained builds.
