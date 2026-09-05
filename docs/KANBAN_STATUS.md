@@ -84,14 +84,11 @@ below) are explicit scope decisions, not shortfalls.
 
 ## Recommended next steps (priority order)
 
-1. **[C] Rate limiting** — the audit defect (login/refresh + workspace write
-   paths); scaffold exists (`rate-limit.middleware.ts`, `SKIP_RATE_LIMIT=true`
-   for tests) and needs wiring. See `next-steps.md`.
-2. **Formal invitations** — implement `docs/WORKSPACE_INVITATIONS.md`; required
+1. **Formal invitations** — implement `docs/WORKSPACE_INVITATIONS.md`; required
    before AI can safely assign unknown users.
-3. **Hybrid AI integration** — implement `docs/WORKSPACE_AI_INTEGRATION.md`
+2. **Hybrid AI integration** — implement `docs/WORKSPACE_AI_INTEGRATION.md`
    after invitations; starts with AI API layer, then in-app chat.
-4. **Card ordering** — drag-to-reorder within a column via `position` field.
+3. **Card ordering** — drag-to-reorder within a column via `position` field.
 
 ## Related docs
 - `WORKSPACE_AI_KANBAN.md` — domain model, AI trust gate, invariants.
