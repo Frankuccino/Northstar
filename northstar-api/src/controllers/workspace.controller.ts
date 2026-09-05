@@ -15,7 +15,13 @@ import {
   assignTask,
   getAssignableUsers,
 } from "../services/workspace.service.js";
-import { listTasksQuerySchema } from "../schemas/workspace.schema.js";
+import {
+  createInvitation,
+  getProjectInvitations,
+  acceptInvitation,
+  revokeInvitation,
+} from "../services/invitation.service.js";
+import { listTasksQuerySchema, listInvitationsQuerySchema } from "../schemas/workspace.schema.js";
 
 export const createProjectHandler = async (
   req: Request,
@@ -228,6 +234,77 @@ export const getAssignableUsersHandler = async (
 ) => {
   try {
     res.json(await getAssignableUsers());
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createInvitationHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { email } = req.body;
+    const actorId = req.user!.id;
+    const actorRole = req.user!.role as "admin" | "manager" | "employee";
+
+    const invitation = await createInvitation(
+      { id: actorId, role: actorRole },
+      Number(req.params.id),
+      email,
+    );
+    res.status(201).json(invitation);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const listProjectInvitationsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const query = listInvitationsQuerySchema.parse(req.query);
+    const invitationsList = await getProjectInvitations(
+      Number(req.params.id),
+      query.statuses ?? undefined,
+    );
+    res.json(invitationsList);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const acceptInvitationHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { rawToken } = req.body;
+    const actorId = req.user!.id;
+    const invitation = await acceptInvitation(rawToken, actorId);
+    res.json(invitation);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const revokeInvitationHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const actorId = req.user!.id;
+    const actorRole = req.user!.role as "admin" | "manager" | "employee";
+    const invitation = await revokeInvitation(
+      { id: actorId, role: actorRole },
+      Number(req.params.invitationId),
+    );
+    res.json(invitation);
   } catch (err) {
     next(err);
   }

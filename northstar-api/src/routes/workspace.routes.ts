@@ -10,6 +10,8 @@ import {
   generateSuggestionSchema,
   validateSuggestionSchema,
   approveCommitSchema,
+  createInvitationSchema,
+  listInvitationsQuerySchema,
 } from "../schemas/workspace.schema.js";
 import {
   createProjectHandler,
@@ -26,6 +28,10 @@ import {
   approveCommitHandler,
   deleteTaskHandler,
   getAssignableUsersHandler,
+  createInvitationHandler,
+  listProjectInvitationsHandler,
+  acceptInvitationHandler,
+  revokeInvitationHandler,
 } from "../controllers/workspace.controller.js";
 
 const router = Router();
@@ -103,5 +109,29 @@ router.post(
 // Delete is gated server-side by canDeleteTask (admin/manager today; per-board
 // ABAC later). The route is authenticated; authority is never client-supplied.
 router.delete("/tasks/:id", deleteTaskHandler);
+
+// Invitations: create + list are admin/manager; accept is token-gated (public);
+// revoke is admin/manager only.
+router.post(
+  "/projects/:id/invitations",
+  authorize("admin", "manager"),
+  validate(createInvitationSchema),
+  createInvitationHandler,
+);
+router.get(
+  "/projects/:id/invitations",
+  authorize("admin", "manager"),
+  listProjectInvitationsHandler,
+);
+router.delete(
+  "/projects/:id/invitations/:invitationId",
+  authorize("admin", "manager"),
+  revokeInvitationHandler,
+);
+router.post(
+  "/invitations/accept",
+  authenticate,
+  acceptInvitationHandler,
+);
 
 export default router;
