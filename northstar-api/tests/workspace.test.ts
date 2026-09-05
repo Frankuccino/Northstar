@@ -2,8 +2,8 @@ import request from "supertest";
 import { describe, afterEach, it, expect, beforeEach } from "vitest";
 import app from "../src/app.js";
 import { db } from "../src/db/index.js";
-import { users, projects, tasks, aiSuggestions, taskValidations } from "../src/db/schema.js";
-import { eq } from "drizzle-orm";
+import { users, projects, tasks, aiSuggestions, taskValidations, invitations, projectMembers } from "../src/db/schema.js";
+import { eq, count } from "drizzle-orm";
 
 const TEST_EMAIL = "workspace.test@example.com";
 const EMP_EMAIL = "workspace.emp@example.com";
@@ -14,6 +14,7 @@ async function cleanup() {
   await db.delete(users).where(eq(users.email, TEST_EMAIL)).catch(() => {});
   await db.delete(users).where(eq(users.email, EMP_EMAIL)).catch(() => {});
   await db.delete(projects).where(eq(projects.name, "WS Test Project")).catch(() => {});
+  await db.delete(invitations).where(eq(invitations.email, "invitee@example.com")).catch(() => {});
 }
 
 // Register, promote to admin, and log in — returns a Bearer access token.
@@ -443,5 +444,99 @@ describe("PATCH /workspace/tasks/:id/assign", () => {
       .send({ assigneeId: 1 });
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found/i);
+  });
+});
+
+describe("project invitations", () => {
+  afterEach(cleanup);
+  beforeEach(cleanup);
+
+  it("creates a pending invitation and returns a token", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Invite Project" });
+    const projectId = project.body.id;
+
+    const res = await request(app)
+      .post(`/workspace/projects/${projectId}/invitations`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ email: "invitee@example.com" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.email).toBe("invitee@example.com");
+    expect(res.body.status).toBe("pending");
+    expect(res.body.rawToken).toBeTruthy();
+  });
+
+  it("lists project invitations", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Invite List Project" });
+    const projectId = project.body.id;
+
+    await request(app)
+      .post(`/workspace/projects/${projectId}/invitations`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ email: "invitee@example.com" });
+
+    const res = await request(app)
+      .get(`/workspace/projects/${projectId}/invitations`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].email).toBe("invitee@example.com");
+  });
+
+  it("accepts an invitation and creates project membership", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Invite Accept Project" });
+    const projectId = project.body.id;
+
+    const invite = await request(app)
+      .post(`/workspace/projects/${projectId}/invitations`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ email: "invitee@example.com" });
+
+    const rawToken = invite.body.rawToken;
+
+    await request(app)
+      .post("/auth/register")
+      .send({ email: "invitee@example.com", password: TEST_PASSWORD, confirmPassword: TEST_PASSWORD, name: "Invitee" });
+    const login = await request(app)
+      .post("/auth/login")
+      .send({ email: "invitee@example.com", password: TEST_PASSWORD });
+    const inviteeToken = login.body.token;
+
+    const res = await request(app)
+      .post("/workspace/invitations/accept")
+      .set("Authorization", `Bearer ${inviteeToken}`)
+      .send({ rawToken });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("accepted");
+  });
+
+  it("forbids employees from creating invitations", async () => {
+    const empToken = await employeeToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${await authToken()}`)
+      .send({ name: "Emp Invite Project" });
+    const projectId = project.body.id;
+
+    const res = await request(app)
+      .post(`/workspace/projects/${projectId}/invitations`)
+      .set("Authorization", `Bearer ${empToken}`)
+      .send({ email: "invitee@example.com" });
+
+    expect(res.status).toBe(403);
   });
 });
