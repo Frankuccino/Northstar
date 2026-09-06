@@ -359,10 +359,41 @@ describe("GET /workspace/users — assignable users", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
-    // admin + any seeded users present
     const byId = new Map((res.body as any[]).map((u: any) => [u.id, u]));
     expect(byId.has(admin.id)).toBe(true);
     expect(byId.get(admin.id)).toEqual({ id: admin.id, name: admin.name });
+  });
+
+  it("filters by projectId when provided", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Assignee Filter Project" });
+    const projectId = project.body.id;
+
+    const me = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, TEST_EMAIL))
+      .limit(1);
+    const meId = (me[0] as any)?.id;
+
+    await request(app)
+      .post(`/workspace/${projectId}/invitations`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ email: "invitee-filter@example.com" });
+
+    const resAll = await request(app)
+      .get("/workspace/users")
+      .set("Authorization", `Bearer ${token}`);
+    expect(resAll.status).toBe(200);
+
+    const resProject = await request(app)
+      .get(`/workspace/users?projectId=${projectId}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(resProject.status).toBe(200);
+    expect((resProject.body as any[]).length).toBeLessThanOrEqual((resAll.body as any[]).length);
   });
 });
 
