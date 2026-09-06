@@ -9,6 +9,7 @@ import {
   commitRecords,
   type SuggestionType,
 } from "../db/schema.js";
+import { projectMembers } from "../db/schema.js";
 import type { TaskStatus } from "../types/task-status.js";
 import { assertTransition, canTransition, wipLimitFor } from "./workspace/state-machine.js";
 import { canDeleteTask, type Actor } from "./workspace/access.js";
@@ -307,9 +308,18 @@ export const assignTask = async (
   return updated;
 };
 
-// Auth users available for assignment. Today this returns all authenticated
-// users (no board-membership filter yet — that lands with the [Y] model). Used
-// by the assignee picker; the route will be filtered to project members later
-// without changing the frontend call site.
-export const getAssignableUsers = async () =>
-  db.select({ id: users.id, name: users.name }).from(users);
+// Auth users available for assignment. When `projectId` is provided, returns
+// only users who are members of that project. This is the project-scoped
+// assignee picker source. When `projectId` is omitted, it falls back to all
+// users for backwards compatibility.
+export const getAssignableUsers = async (projectId?: number) => {
+  if (projectId) {
+    return db
+      .select({ id: users.id, name: users.name })
+      .from(projectMembers)
+      .innerJoin(users, eq(projectMembers.userId, users.id))
+      .where(eq(projectMembers.projectId, projectId));
+  }
+
+  return db.select({ id: users.id, name: users.name }).from(users);
+};
