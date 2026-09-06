@@ -1,4 +1,4 @@
-import { eq, and, lt, desc, inArray } from "drizzle-orm";
+import { eq, and, lt, gt, desc, inArray } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { db } from "../db/index.js";
 import {
@@ -94,7 +94,7 @@ export const acceptInvitation = async (rawToken: string, userId: number) => {
       and(
         eq(invitations.tokenHash, hash),
         eq(invitations.status, "pending"),
-        lt(invitations.expiresAt, new Date()),
+        gt(invitations.expiresAt, new Date()),
       ),
     );
 

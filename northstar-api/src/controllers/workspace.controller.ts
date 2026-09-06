@@ -228,12 +228,15 @@ export const approveCommitHandler = async (
 };
 
 export const getAssignableUsersHandler = async (
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    res.json(await getAssignableUsers());
+    const projectId = req.query.projectId
+      ? Number(req.query.projectId)
+      : undefined;
+    res.json(await getAssignableUsers(projectId));
   } catch (err) {
     next(err);
   }
