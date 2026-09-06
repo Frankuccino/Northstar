@@ -37,8 +37,8 @@ export const ProjectDetailPage = () => {
   const { data: tasks, isLoading, error } = useProjectTasks(id, filters);
 
   const { data: assignableUsers } = useQuery({
-    queryKey: ["assignableUsers", id],
-    queryFn: getAssignableUsers,
+    queryKey: workspaceKeys.assignableUsers(id),
+    queryFn: () => getAssignableUsers(id),
     enabled: id > 0,
   });
 

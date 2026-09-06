@@ -158,8 +158,11 @@ export const markValidated = async (taskId: number): Promise<Task> => {
 // Assignee ----------------------------------------------------------------
 // Reassigns a task's assignee. Fetches assignable users from
 // GET /workspace/users (id + name). Clears the assignee when null is passed.
-export const getAssignableUsers = async (): Promise<{ id: number; name: string }[]> => {
-  const res = await api.get("/workspace/users");
+export const getAssignableUsers = async (
+  projectId?: number,
+): Promise<{ id: number; name: string }[]> => {
+  const params = projectId ? `?projectId=${projectId}` : "";
+  const res = await api.get(`/workspace/users${params}`);
   return res.data;
 };
 
@@ -176,5 +179,57 @@ export const assignTask = async (
 // decision — a non-privileged user's request is rejected with 403.
 export const deleteTask = async (taskId: number): Promise<{ id: number }> => {
   const res = await api.delete(`/workspace/tasks/${taskId}`);
+  return res.data;
+};
+
+// ---- Invitations ----------------------------------------------------------
+export const createInvitation = async (
+  projectId: number,
+  email: string,
+): Promise<{ id: number; email: string; status: string; rawToken: string }> => {
+  const res = await api.post(`/workspace/projects/${projectId}/invitations`, {
+    email,
+  });
+  return res.data;
+};
+
+export const getProjectInvitations = async (
+  projectId: number,
+  statuses?: string[],
+): Promise<
+  {
+    id: number;
+    email: string;
+    status: string;
+    expiresAt: string;
+    acceptedAt: string | null;
+    createdAt: string;
+    invitedByName: string | null;
+  }[]
+> => {
+  const params = new URLSearchParams();
+  if (statuses?.length)
+    params.set("statuses", statuses.join(","));
+  const qs = params.toString();
+  const res = await api.get(
+    `/workspace/projects/${projectId}/invitations${qs ? `?${qs}` : ""}`,
+  );
+  return res.data;
+};
+
+export const revokeInvitation = async (
+  projectId: number,
+  invitationId: number,
+): Promise<{ id: number; status: string }> => {
+  const res = await api.delete(
+    `/workspace/projects/${projectId}/invitations/${invitationId}`,
+  );
+  return res.data;
+};
+
+export const acceptInvitation = async (
+  rawToken: string,
+): Promise<{ id: number; status: string }> => {
+  const res = await api.post("/workspace/invitations/accept", { rawToken });
   return res.data;
 };

@@ -20,6 +20,7 @@ import {
   deleteTask,
   getAssignableUsers,
   assignTask,
+  createInvitation,
 } from "../api/workspace.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
@@ -117,8 +118,8 @@ export const TaskDetail = ({
 
   // ---- Assignee picker -----------------------------------------------------
   const { data: users, isLoading: usersLoading } = useQuery({
-    queryKey: workspaceKeys.assignableUsers(),
-    queryFn: getAssignableUsers,
+    queryKey: workspaceKeys.assignableUsers(projectId),
+    queryFn: () => getAssignableUsers(projectId),
     enabled: open,
   });
 
@@ -134,6 +135,17 @@ export const TaskDetail = ({
 
   const clearAssignee = () => assignMut.mutate(null);
   const setAssignee = (id: number) => assignMut.mutate(id);
+
+  const [inviteEmail, setInviteEmail] = useState("");
+  const inviteMut = useMutation({
+    mutationFn: () => createInvitation(projectId, inviteEmail),
+    onSuccess: () => {
+      setInviteEmail("");
+      setError(null);
+    },
+    onError: (e: any) =>
+      setError(e?.response?.data?.error ?? "Failed to send invitation"),
+  });
 
   const unassignedOption: { id: string; name: string } = { id: "", name: "Unassigned" };
   const userOptions: { id: string; name: string }[] = (users ?? []).map((u) => ({
@@ -255,6 +267,23 @@ export const TaskDetail = ({
               </SelectContent>
             </Select>
           )}
+
+          <div className="mt-3 flex flex-col gap-2">
+            <Input
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="Invite by email"
+              type="email"
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!inviteEmail || inviteMut.isPending}
+              onClick={() => inviteMut.mutate()}
+            >
+              Send invitation
+            </Button>
+          </div>
         </section>
 
         <section className="border-t pt-3">

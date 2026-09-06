@@ -17,5 +17,6 @@ export const workspaceKeys = {
     ] as const,
   taskSuggestions: (taskId: number) =>
     [...workspaceKeys.all, "tasks", taskId, "suggestions"] as const,
-  assignableUsers: () => [...workspaceKeys.all, "users"] as const,
+  assignableUsers: (projectId?: number) =>
+    [...workspaceKeys.all, "users", projectId ?? "all"] as const,
 };
