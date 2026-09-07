@@ -27,6 +27,7 @@ import {
   markValidatedHandler,
   approveCommitHandler,
   deleteTaskHandler,
+  deleteProjectHandler,
   getAssignableUsersHandler,
   createInvitationHandler,
   listProjectInvitationsHandler,
@@ -109,6 +110,10 @@ router.post(
 // Delete is gated server-side by canDeleteTask (admin/manager today; per-board
 // ABAC later). The route is authenticated; authority is never client-supplied.
 router.delete("/tasks/:id", deleteTaskHandler);
+
+// Projects can be deleted by admins only. Authority is checked in the service
+// layer so the route itself stays unopinionated about policy.
+router.delete("/:id", deleteProjectHandler);
 
 // Invitations: create + list are admin/manager; accept is token-gated (public);
 // revoke is admin/manager only.

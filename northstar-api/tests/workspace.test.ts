@@ -311,6 +311,44 @@ describe("DELETE /workspace/tasks/:id (defect [Y] foundation)", () => {
   });
 });
 
+describe("DELETE /workspace/:id (project delete)", () => {
+  afterEach(cleanup);
+  beforeEach(cleanup);
+
+  it("allows an admin to delete a project (200)", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Delete Me Project" });
+    const projectId = project.body.id;
+
+    const res = await request(app)
+      .delete(`/workspace/${projectId}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe(projectId);
+  });
+
+  it("forbids an employee from deleting a project (403)", async () => {
+    const admin = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${admin}`)
+      .send({ name: "Delete Me Project" });
+    const projectId = project.body.id;
+
+    const empToken = await employeeToken();
+    const res = await request(app)
+      .delete(`/workspace/${projectId}`)
+      .set("Authorization", `Bearer ${empToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/forbidden/i);
+  });
+});
+
 describe("GET /workspace/:id/tasks — assignee name (defect display)", () => {
   afterEach(cleanup);
   beforeEach(cleanup);

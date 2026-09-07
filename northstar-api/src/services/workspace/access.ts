@@ -24,3 +24,10 @@ export async function canDeleteTask(
   // already threaded through so Y can use it without changing call sites.
   return actor.role === "admin" || actor.role === "manager";
 }
+
+export async function canDeleteProject(
+  actor: Actor,
+  _projectId: number,
+): Promise<boolean> {
+  return actor.role === "admin";
+}

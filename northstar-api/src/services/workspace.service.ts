@@ -12,7 +12,7 @@ import {
 import { projectMembers } from "../db/schema.js";
 import type { TaskStatus } from "../types/task-status.js";
 import { assertTransition, canTransition, wipLimitFor } from "./workspace/state-machine.js";
-import { canDeleteTask, type Actor } from "./workspace/access.js";
+import { canDeleteTask, canDeleteProject, type Actor } from "./workspace/access.js";
 import { aiProvider, type SuggestionType as AiSuggestionType } from "../lib/ai/provider.js";
 
 // ---- Projects -------------------------------------------------------------
@@ -143,6 +143,19 @@ export const deleteTask = async (actor: Actor, taskId: number) => {
 
   await db.delete(tasks).where(eq(tasks.id, taskId));
   return { id: taskId };
+};
+
+export const deleteProject = async (actor: Actor, projectId: number) => {
+  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+  if (!project) throw new Error("Project not found");
+
+  const allowed = await canDeleteProject(actor, projectId);
+  if (!allowed) {
+    throw new Error("Forbidden: insufficient permission to delete this project");
+  }
+
+  await db.delete(projects).where(eq(projects.id, projectId));
+  return { id: projectId };
 };
 
 // ---- AI suggestions (versioned, async-ready) ------------------------------

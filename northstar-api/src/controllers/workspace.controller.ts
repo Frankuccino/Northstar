@@ -12,6 +12,7 @@ import {
   markValidated,
   approveCommit,
   deleteTask,
+  deleteProject,
   assignTask,
   getAssignableUsers,
 } from "../services/workspace.service.js";
@@ -207,6 +208,19 @@ export const deleteTaskHandler = async (
     // isRole in verifyAccessToken). Deletion authority is decided server-side
     // by canDeleteTask — never trust a client-supplied role.
     const deleted = await deleteTask(req.user!, Number(req.params.id));
+    res.json(deleted);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteProjectHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const deleted = await deleteProject(req.user!, Number(req.params.id));
     res.json(deleted);
   } catch (err) {
     next(err);
