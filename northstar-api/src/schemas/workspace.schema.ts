@@ -65,3 +65,21 @@ export const listInvitationsQuerySchema = z.object({
     .array()
     .optional(),
 });
+
+export const executeAiIntentSchema = z.object({
+  intent: z.enum([
+    "list_tasks",
+    "get_task",
+    "create_task",
+    "move_task",
+    "assign_task",
+    "list_invitations",
+    "create_invitation",
+  ]),
+  payload: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const listAiActionsQuerySchema = z.object({
+  clientId: z.coerce.number().int().positive().optional(),
+  projectId: z.coerce.number().int().positive().optional(),
+});
