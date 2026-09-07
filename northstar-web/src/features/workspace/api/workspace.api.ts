@@ -182,6 +182,11 @@ export const deleteTask = async (taskId: number): Promise<{ id: number }> => {
   return res.data;
 };
 
+export const deleteProject = async (projectId: number): Promise<{ id: number }> => {
+  const res = await api.delete(`/workspace/${projectId}`);
+  return res.data;
+};
+
 // ---- Invitations ----------------------------------------------------------
 export const createInvitation = async (
   projectId: number,

@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/select";
 import { useProjectTasks } from "../hooks/use-project-tasks";
 import { useTaskSuggestions } from "../hooks/use-task-suggestions";
-import { createTask, moveTask, getAssignableUsers } from "../api/workspace.api";
+import { useCurrentUser } from "../../auth/hooks/use-current-user";
+import { createTask, moveTask, getAssignableUsers, deleteProject } from "../api/workspace.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
 import { Board } from "../components/board";
@@ -26,6 +27,8 @@ export const ProjectDetailPage = () => {
   const id = Number(projectId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const currentUser = useCurrentUser();
+  const canDeleteProject = currentUser?.role === "admin";
 
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
   const [assigneeFilter, setAssigneeFilter] = useState<number | "">("");
@@ -72,6 +75,16 @@ export const ProjectDetailPage = () => {
   const handleMove = (task: Task, status: TaskStatus) =>
     move.mutate({ taskId: task.id, status });
 
+  const delProject = useMutation({
+    mutationFn: () => deleteProject(id),
+    onSuccess: () => {
+      navigate("/workspace");
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+    onError: (e: any) =>
+      alert(e?.response?.data?.error ?? "Failed to delete project"),
+  });
+
   const clearFilters = () => {
     setStatusFilter("");
     setAssigneeFilter("");
@@ -114,6 +127,22 @@ export const ProjectDetailPage = () => {
           Server-authoritative task states. Illegal moves are rejected by the API.
         </p>
       </div>
+
+      {canDeleteProject && (
+        <div className="flex justify-end">
+          <Button
+            variant="destructive"
+            disabled={delProject.isPending}
+            onClick={() => {
+              if (window.confirm("Delete this project and all its tasks?")) {
+                delProject.mutate();
+              }
+            }}
+          >
+            Delete project
+          </Button>
+        </div>
+      )}
 
       <div className="flex items-end gap-2">
         <div className="flex-1">
