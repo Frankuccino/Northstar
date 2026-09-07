@@ -21,7 +21,13 @@ import {
   acceptInvitation,
   revokeInvitation,
 } from "../services/invitation.service.js";
+import {
+  verifyAiClient,
+  executeAiIntent,
+  listAiActions,
+} from "../services/ai.service.js";
 import { listTasksQuerySchema, listInvitationsQuerySchema } from "../schemas/workspace.schema.js";
+import { executeAiIntentSchema, listAiActionsQuerySchema } from "../schemas/workspace.schema.js";
 
 export const createProjectHandler = async (
   req: Request,
@@ -308,6 +314,50 @@ export const revokeInvitationHandler = async (
       Number(req.params.invitationId),
     );
     res.json(invitation);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const executeAiIntentHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const apiKey = String(req.headers["x-ai-api-key"] ?? "");
+    const client = await verifyAiClient(apiKey);
+
+    const { intent, payload } = executeAiIntentSchema.parse(req.body);
+    const actorUserId = (req as any).user?.id;
+    const result = await executeAiIntent({
+      clientId: client.id,
+      actorUserId,
+      projectId: Number(req.params.id),
+      intent,
+      payload: payload ?? {},
+      ip: req.ip,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const listAiActionsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const apiKey = String(req.headers["x-ai-api-key"] ?? "");
+    const client = await verifyAiClient(apiKey);
+    const query = listAiActionsQuerySchema.parse(req.query);
+    const actions = await listAiActions({
+      clientId: client.id,
+      projectId: query.projectId,
+    });
+    res.json(actions);
   } catch (err) {
     next(err);
   }

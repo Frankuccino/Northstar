@@ -6,6 +6,8 @@ import authRoutes from "./routes/auth.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import workspaceRoutes from "./routes/workspace.routes.js";
 
+import aiRoutes from "./routes/ai.routes.js";
+
 import { rateLimiter } from "./middleware/rate-limit.middleware.js";
 import { corsOptions } from "./middleware/cors.middleware.js";
 import { securityHeaders } from "./middleware/security.middleware.js";
@@ -27,6 +29,7 @@ app.use(cookieParser());
 app.use("/auth", authRoutes);
 app.use("/employees", employeeRoutes);
 app.use("/workspace", workspaceRoutes);
+app.use("/ai", aiRoutes);
 
 app.get("/", (_, res) => {
   res.json({

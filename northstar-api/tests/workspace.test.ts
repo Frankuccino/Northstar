@@ -2,7 +2,7 @@ import request from "supertest";
 import { describe, afterEach, it, expect, beforeEach } from "vitest";
 import app from "../src/app.js";
 import { db } from "../src/db/index.js";
-import { users, projects, tasks, aiSuggestions, taskValidations, invitations, projectMembers } from "../src/db/schema.js";
+import { users, projects, tasks, aiSuggestions, taskValidations, invitations, projectMembers, aiClients, aiActions } from "../src/db/schema.js";
 import { eq, count } from "drizzle-orm";
 
 const TEST_EMAIL = "workspace.test@example.com";
@@ -15,6 +15,9 @@ async function cleanup() {
   await db.delete(users).where(eq(users.email, EMP_EMAIL)).catch(() => {});
   await db.delete(projects).where(eq(projects.name, "WS Test Project")).catch(() => {});
   await db.delete(invitations).where(eq(invitations.email, "invitee@example.com")).catch(() => {});
+  await db.delete(aiClients).where(eq(aiClients.name, "test-ai-client")).catch(() => {});
+  await db.delete(aiActions).where(eq(aiActions.clientId, -1)).catch(() => {});
+  await db.delete(projectMembers).where(eq(projectMembers.userId, -1)).catch(() => {});
 }
 
 // Register, promote to admin, and log in — returns a Bearer access token.
@@ -569,5 +572,54 @@ describe("project invitations", () => {
       .send({ email: "invitee@example.com" });
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe("AI integration", () => {
+  afterEach(cleanup);
+  beforeEach(cleanup);
+
+  it("rejects requests without an AI API key", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "AI Project" });
+    const projectId = project.body.id;
+
+    const res = await request(app)
+      .post(`/ai/projects/${projectId}/execute`)
+      .send({ intent: "list_tasks" });
+
+    expect(res.status).toBe(401);
+    expect(res.body.error).toMatch(/Missing AI API key/);
+  });
+
+  it("allows a valid AI client to create a task", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "AI Create Project" });
+    const projectId = project.body.id;
+
+    const rawApiKey = "test-ai-key";
+    const client = await db
+      .insert(aiClients)
+      .values({
+        name: "test-ai-client",
+        apiKeyHash: "fa4c43e567a311d8cbc196164b7383bc1d3b5e99dde060f07b1f8451cff4d0e5",
+        scope: "write",
+        rateLimit: 100,
+      })
+      .returning();
+
+    const res = await request(app)
+      .post(`/ai/projects/${projectId}/execute`)
+      .set("x-ai-api-key", rawApiKey)
+      .send({ intent: "create_task", payload: { title: "AI Task" } });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
   });
 });
