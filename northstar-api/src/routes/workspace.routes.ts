@@ -4,6 +4,7 @@ import { authorize } from "../middleware/role.middleware.js";
 import { validate } from "../middleware/validate.middleware.js";
 import {
   createProjectSchema,
+  updateProjectSchema,
   createTaskSchema,
   moveTaskSchema,
   assignTaskSchema,
@@ -17,6 +18,7 @@ import {
   createProjectHandler,
   listProjectsHandler,
   getProjectHandler,
+  updateProjectHandler,
   createTaskHandler,
   listTasksHandler,
   moveTaskHandler,
@@ -55,6 +57,11 @@ router.post(
 router.get("/users", getAssignableUsersHandler);
 
 router.get("/:id", getProjectHandler);
+router.patch(
+  "/:id",
+  validate(updateProjectSchema),
+  updateProjectHandler,
+);
 
 // Tasks: any authed user can view; create is admin/manager.
 router.get("/:id/tasks", listTasksHandler);

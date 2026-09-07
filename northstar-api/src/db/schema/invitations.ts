@@ -6,8 +6,10 @@ import {
   integer,
   index,
   check,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { users } from "./users.js";
+import { projects } from "./workspace.js";
 
 export const INVITATION_STATUSES = [
   "pending",
@@ -23,8 +25,12 @@ export const invitations = pgTable(
   {
     id: serial("id").primaryKey(),
     email: text("email").notNull(),
-    projectId: integer("project_id").notNull(),
-    invitedById: integer("invited_by_id").notNull(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    invitedById: integer("invited_by_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
     tokenHash: text("token_hash").notNull(),
     status: text("status")
       .$type<InvitationStatus>()
@@ -60,5 +66,9 @@ export const projectMembers = pgTable(
   },
   (table) => [
     index("project_members_user_id_idx").on(table.userId),
+    uniqueIndex("project_members_project_user_uniq").on(
+      table.projectId,
+      table.userId,
+    ),
   ],
 );

@@ -347,6 +347,86 @@ describe("DELETE /workspace/:id (project delete)", () => {
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/forbidden/i);
   });
+
+  it("cascade deletes tasks when a project is deleted", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Cascade Project" });
+    const projectId = project.body.id;
+
+    await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Task A" });
+    await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Task B" });
+
+    const before = await request(app)
+      .get(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(before.body).toHaveLength(2);
+
+    const res = await request(app)
+      .delete(`/workspace/${projectId}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    const [projectRow] = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+    expect(projectRow).toBeUndefined();
+
+    const taskRows = await db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.projectId, projectId));
+    expect(taskRows).toHaveLength(0);
+  });
+});
+
+describe("PATCH /workspace/:id (project update)", () => {
+  afterEach(cleanup);
+  beforeEach(cleanup);
+
+  it("updates project name/description", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Old Name", description: "Old desc" });
+    const projectId = project.body.id;
+
+    const res = await request(app)
+      .patch(`/workspace/${projectId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "New Name", description: "New desc" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("New Name");
+    expect(res.body.description).toBe("New desc");
+    expect(res.body.updatedAt).not.toBe(project.body.updatedAt);
+  });
+
+  it("rejects invalid update body (400)", async () => {
+    const token = await authToken();
+    const project = await request(app)
+      .post("/workspace")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Bad Project" });
+    const projectId = project.body.id;
+
+    const res = await request(app)
+      .patch(`/workspace/${projectId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "" });
+
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("GET /workspace/:id/tasks — assignee name (defect display)", () => {

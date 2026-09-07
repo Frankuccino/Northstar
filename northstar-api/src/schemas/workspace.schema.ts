@@ -50,6 +50,11 @@ export const approveCommitSchema = z.object({
   justification: z.string().trim().min(1).max(1000),
 });
 
+export const updateProjectSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().max(500).optional(),
+});
+
 export const listTasksQuerySchema = z.object({
   status: z.enum(TASK_STATUSES).optional(),
   assigneeId: z.coerce.number().int().positive().nullable().optional(),

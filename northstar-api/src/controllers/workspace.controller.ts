@@ -13,6 +13,7 @@ import {
   approveCommit,
   deleteTask,
   deleteProject,
+  updateProject,
   assignTask,
   getAssignableUsers,
 } from "../services/workspace.service.js";
@@ -63,6 +64,19 @@ export const getProjectHandler = async (
 ) => {
   try {
     res.json(await getProject(Number(req.params.id)));
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateProjectHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const updated = await updateProject(Number(req.params.id), req.body);
+    res.json(updated);
   } catch (err) {
     next(err);
   }
