@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useProjects } from "../hooks/use-projects";
-import { createProject } from "../api/workspace.api";
+import { useCurrentUser } from "../../auth/hooks/use-current-user";
+import { createProject, deleteProject } from "../api/workspace.api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
 
@@ -13,8 +15,11 @@ export const ProjectsPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useProjects();
+  const currentUser = useCurrentUser();
+  const isAdmin = currentUser?.role === "admin";
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const create = useMutation({
     mutationFn: () => createProject({ name, description: description || undefined }),
@@ -24,6 +29,23 @@ export const ProjectsPage = () => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
     },
   });
+
+  const bulkDelete = useMutation({
+    mutationFn: async () => {
+      await Promise.all(selectedIds.map((id) => deleteProject(id)));
+    },
+    onSuccess: () => {
+      setSelectedIds([]);
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
+    },
+    onError: (e: any) => alert(e?.response?.data?.error ?? "Failed to delete projects"),
+  });
+
+  const toggleSelect = (id: number, checked: boolean) => {
+    setSelectedIds((prev) =>
+      checked ? [...prev, id] : prev.filter((x) => x !== id),
+    );
+  };
 
   if (isLoading) return <p>Loading projects…</p>;
   if (error) return <p>Failed to load projects.</p>;
@@ -64,26 +86,64 @@ export const ProjectsPage = () => {
         </Button>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(data ?? []).map((project) => (
-          <Card
-            key={project.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(`/workspace/${project.id}`)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") navigate(`/workspace/${project.id}`);
+      {isAdmin && selectedIds.length > 0 && (
+        <div className="flex items-center justify-between rounded-md border p-3">
+          <p className="text-sm">{selectedIds.length} selected</p>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={bulkDelete.isPending}
+            onClick={() => {
+              if (window.confirm(`Delete ${selectedIds.length} project(s)?`)) {
+                bulkDelete.mutate();
+              }
             }}
-            className="cursor-pointer p-4 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
-            <h3 className="font-medium">{project.name}</h3>
-            {project.description && (
-              <p className="mt-1 text-sm text-muted-foreground">
-                {project.description}
-              </p>
-            )}
-          </Card>
-        ))}
+            Delete selected
+          </Button>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {(data ?? []).map((project) => {
+          const checked = selectedIds.includes(project.id);
+          return (
+            <Card
+              key={project.id}
+              className={`p-4 hover:border-primary/60 ${
+                isAdmin ? "cursor-default" : "cursor-pointer"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                {isAdmin && (
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(v) =>
+                      toggleSelect(project.id, Boolean(v))
+                    }
+                    className="mt-1"
+                  />
+                )}
+                <div
+                  className={`flex-1 ${isAdmin ? "" : "cursor-pointer"}`}
+                  onClick={() => navigate(`/workspace/${project.id}`)}
+                  onKeyDown={(e) => {
+                    if (!isAdmin && e.key === "Enter") navigate(`/workspace/${project.id}`);
+                  }}
+                  role={isAdmin ? undefined : "button"}
+                  tabIndex={isAdmin ? undefined : 0}
+                >
+                  <h3 className="font-medium">{project.name}</h3>
+                  {project.description && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {project.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

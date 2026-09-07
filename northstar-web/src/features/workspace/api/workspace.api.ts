@@ -73,10 +73,23 @@ export const getProjects = async (): Promise<Project[]> => {
   return res.data.map(toProject);
 };
 
+export const getProject = async (id: number): Promise<Project> => {
+  const res = await api.get(`/workspace/${id}`);
+  return toProject(res.data);
+};
+
 export const createProject = async (
   data: CreateProjectInput,
 ): Promise<Project> => {
   const res = await api.post("/workspace", data);
+  return toProject(res.data);
+};
+
+export const updateProject = async (
+  id: number,
+  data: { name?: string; description?: string | null },
+): Promise<Project> => {
+  const res = await api.patch(`/workspace/${id}`, data);
   return toProject(res.data);
 };
 

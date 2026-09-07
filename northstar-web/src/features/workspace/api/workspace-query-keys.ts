@@ -3,6 +3,8 @@ import type { TaskStatus } from "../types/workspace";
 export const workspaceKeys = {
   all: ["workspace"] as const,
   projects: () => [...workspaceKeys.all, "projects"] as const,
+  project: (projectId: number) =>
+    [...workspaceKeys.all, "projects", projectId] as const,
   projectTasks: (
     projectId: number,
     filters?: { status?: TaskStatus; assigneeId?: number | null },

@@ -121,6 +121,16 @@ export const ProjectDetailPage = () => {
         Projects
       </Button>
 
+      {canDeleteProject && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate(`/workspace/${id}/settings`)}
+        >
+          Settings
+        </Button>
+      )}
+
       <div>
         <h1 className="text-2xl font-semibold">Board</h1>
         <p className="text-sm text-muted-foreground">
