@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Trash2 } from "lucide-react";
 import { useProjects } from "../hooks/use-projects";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
 import { createProject, deleteProject } from "../api/workspace.api";
@@ -39,6 +40,14 @@ export const ProjectsPage = () => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
     },
     onError: (e: any) => alert(e?.response?.data?.error ?? "Failed to delete projects"),
+  });
+
+  const singleDelete = useMutation({
+    mutationFn: async (id: number) => deleteProject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
+    },
+    onError: (e: any) => alert(e?.response?.data?.error ?? "Failed to delete project"),
   });
 
   const toggleSelect = (id: number, checked: boolean) => {
@@ -140,6 +149,22 @@ export const ProjectsPage = () => {
                     </p>
                   )}
                 </div>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive"
+                    disabled={singleDelete.isPending}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Delete "${project.name}" and all its tasks?`)) {
+                        singleDelete.mutate(project.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             </Card>
           );
