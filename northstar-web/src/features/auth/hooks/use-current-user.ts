@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
 
-import { getToken } from "../utils/token";
+import { getToken, TOKEN_KEY } from "../utils/token";
 import { isRole, type Role } from "@/types/role";
 
 type CurrentUser = {
@@ -12,25 +12,48 @@ type CurrentUser = {
 
 // Single source of truth for "who is logged in" on the client.
 // Decodes the access token; returns null when absent or undecodable.
+// Uses useState + useEffect (not useMemo) so the hook re-evaluates
+// whenever the token in localStorage changes (login/logout).
 export const useCurrentUser = (): CurrentUser | null => {
-  return useMemo(() => {
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+
+  const readToken = useCallback(() => {
     const token = getToken();
-    if (!token) return null;
+    if (!token) {
+      setCurrentUser(null);
+      return;
+    }
 
     try {
       const payload = jwtDecode<JwtPayload & { role?: unknown; email?: unknown }>(token);
-      if (!payload.sub) return null;
-      // The role claim is untrusted (a forged/legacy token could carry a
-      // non-Role string like "user"). Validate it; fall back to least-privilege
-      // "employee" rather than trusting a raw `as Role` cast.
+      if (!payload.sub) {
+        setCurrentUser(null);
+        return;
+      }
+
       const role: Role = isRole(payload.role) ? payload.role : "employee";
-      return {
+      setCurrentUser({
         id: payload.sub,
         email: typeof payload.email === "string" ? payload.email : "",
         role,
-      };
+      });
     } catch {
-      return null;
+      setCurrentUser(null);
     }
   }, []);
+
+  useEffect(() => {
+    readToken();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === TOKEN_KEY) {
+        readToken();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [readToken]);
+
+  return currentUser;
 };
