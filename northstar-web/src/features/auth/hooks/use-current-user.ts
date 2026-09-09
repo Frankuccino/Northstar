@@ -25,15 +25,15 @@ export const useCurrentUser = (): CurrentUser | null => {
     }
 
     try {
-      const payload = jwtDecode<JwtPayload & { role?: unknown; email?: unknown }>(token);
-      if (!payload.sub) {
+      const payload = jwtDecode<JwtPayload & { id?: unknown; role?: unknown; email?: unknown }>(token);
+      if (payload.id == null) {
         setCurrentUser(null);
         return;
       }
 
       const role: Role = isRole(payload.role) ? payload.role : "employee";
       setCurrentUser({
-        id: payload.sub,
+        id: typeof payload.id === "number" ? payload.id : Number(payload.id),
         email: typeof payload.email === "string" ? payload.email : "",
         role,
       });

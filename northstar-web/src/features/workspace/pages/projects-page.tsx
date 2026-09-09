@@ -18,6 +18,7 @@ export const ProjectsPage = () => {
   const { data, isLoading, error } = useProjects();
   const currentUser = useCurrentUser();
   const isAdmin = currentUser?.role === "admin";
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
