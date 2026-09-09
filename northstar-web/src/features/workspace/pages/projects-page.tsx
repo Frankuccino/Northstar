@@ -4,13 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useProjects } from "../hooks/use-projects";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
-import { createProject, deleteProject } from "../api/workspace.api";
+import { createProject } from "../api/workspace.api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
+import { ProjectRowActions } from "../components/project-row-actions";
+import { EditProjectDialog } from "../components/edit-project-dialog";
+import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
+import type { Project } from "../types/workspace";
 
 export const ProjectsPage = () => {
   const navigate = useNavigate();
@@ -21,41 +24,18 @@ export const ProjectsPage = () => {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
 
   const create = useMutation({
-    mutationFn: () => createProject({ name, description: description || undefined }),
+    mutationFn: () =>
+      createProject({ name, description: description || undefined }),
     onSuccess: () => {
       setName("");
       setDescription("");
       queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
     },
   });
-
-  const bulkDelete = useMutation({
-    mutationFn: async () => {
-      await Promise.all(selectedIds.map((id) => deleteProject(id)));
-    },
-    onSuccess: () => {
-      setSelectedIds([]);
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
-    },
-    onError: (e: any) => alert(e?.response?.data?.error ?? "Failed to delete projects"),
-  });
-
-  const singleDelete = useMutation({
-    mutationFn: async (id: number) => deleteProject(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
-    },
-    onError: (e: any) => alert(e?.response?.data?.error ?? "Failed to delete project"),
-  });
-
-  const toggleSelect = (id: number, checked: boolean) => {
-    setSelectedIds((prev) =>
-      checked ? [...prev, id] : prev.filter((x) => x !== id),
-    );
-  };
 
   if (isLoading) return <p>Loading projects…</p>;
   if (error) return <p>Failed to load projects.</p>;
@@ -92,85 +72,58 @@ export const ProjectsPage = () => {
           disabled={!name || create.isPending}
           onClick={() => create.mutate()}
         >
+          <Plus className="mr-1 h-4 w-4" />
           Create
         </Button>
       </Card>
 
-      {isAdmin && selectedIds.length > 0 && (
-        <div className="flex items-center justify-between rounded-md border p-3">
-          <p className="text-sm">{selectedIds.length} selected</p>
-          <Button
-            variant="destructive"
-            size="sm"
-            disabled={bulkDelete.isPending}
-            onClick={() => {
-              if (window.confirm(`Delete ${selectedIds.length} project(s)?`)) {
-                bulkDelete.mutate();
-              }
-            }}
-          >
-            Delete selected
-          </Button>
-        </div>
-      )}
-
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {(data ?? []).map((project) => {
-          const checked = selectedIds.includes(project.id);
-          return (
-            <Card
-              key={project.id}
-              className={`p-4 hover:border-primary/60 ${
-                isAdmin ? "cursor-default" : "cursor-pointer"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {isAdmin && (
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={(v) =>
-                      toggleSelect(project.id, Boolean(v))
-                    }
-                    className="mt-1"
-                  />
-                )}
-                <div
-                  className={`flex-1 ${isAdmin ? "" : "cursor-pointer"}`}
-                  onClick={() => navigate(`/workspace/${project.id}`)}
-                  onKeyDown={(e) => {
-                    if (!isAdmin && e.key === "Enter") navigate(`/workspace/${project.id}`);
-                  }}
-                  role={isAdmin ? undefined : "button"}
-                  tabIndex={isAdmin ? undefined : 0}
-                >
-                  <h3 className="font-medium">{project.name}</h3>
-                  {project.description && (
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {project.description}
-                    </p>
-                  )}
-                </div>
-                {isAdmin && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive"
-                    disabled={singleDelete.isPending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.confirm(`Delete "${project.name}" and all its tasks?`)) {
-                        singleDelete.mutate(project.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
+        {(data ?? []).map((project) => (
+          <Card
+            key={project.id}
+            className="group relative p-4 hover:border-primary/60"
+          >
+            {isAdmin && (
+              <div className="absolute right-2 top-2">
+                <ProjectRowActions
+                  project={project}
+                  onEdit={setEditingProject}
+                  onDelete={setDeletingProject}
+                />
               </div>
-            </Card>
-          );
-        })}
+            )}
+            <div
+              className="cursor-pointer pr-8"
+              onClick={() => navigate(`/workspace/${project.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") navigate(`/workspace/${project.id}`);
+              }}
+              role="button"
+              tabIndex={0}
+            >
+              <h3 className="font-medium">{project.name}</h3>
+              {project.description && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {project.description}
+                </p>
+              )}
+            </div>
+          </Card>
+        ))}
       </div>
+
+      <EditProjectDialog
+        open={!!editingProject}
+        project={editingProject}
+        onClose={() => setEditingProject(null)}
+      />
+
+      <ConfirmDeleteDialog
+        project={deletingProject}
+        onOpenChange={(open) => {
+          if (!open) setDeletingProject(null);
+        }}
+      />
     </div>
   );
 };
