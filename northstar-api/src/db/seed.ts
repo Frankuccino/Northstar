@@ -229,11 +229,10 @@ async function seed() {
   // every deploy (it becomes an idempotent insert). Without it, existing rows
   // are preserved and only missing seed rows are added — never deleted.
   if (process.env.RESEED === "true") {
-    console.log("🗑️ Clearing existing database tables (RESEED=true)...");
-    await db.delete(employees);
-    await db.delete(users);
-    await db.execute(sql`ALTER SEQUENCE users_id_seq RESTART WITH 1;`);
-    await db.execute(sql`ALTER SEQUENCE employees_id_seq RESTART WITH 1;`);
+    console.log("🗑️ Clearing all database tables (RESEED=true)...");
+    await db.execute(
+      sql`TRUNCATE TABLE users, employees, projects, tasks, ai_suggestions, task_validations, commit_records, invitations, project_members, ai_clients, ai_actions, refresh_tokens RESTART IDENTITY CASCADE;`,
+    );
     console.log("🌱 Database wiped. Starting fresh unique salting...");
   } else {
     console.log(
