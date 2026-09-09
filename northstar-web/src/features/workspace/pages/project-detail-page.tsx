@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,14 +11,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useProjectTasks } from "../hooks/use-project-tasks";
 import { useTaskSuggestions } from "../hooks/use-task-suggestions";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
-import { createTask, moveTask, getAssignableUsers, deleteProject } from "../api/workspace.api";
+import { createTask, moveTask, getAssignableUsers } from "../api/workspace.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
 import { Board } from "../components/board";
 import { TaskDetail } from "../components/task-detail";
+import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
@@ -32,6 +40,10 @@ export const ProjectDetailPage = () => {
 
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
   const [assigneeFilter, setAssigneeFilter] = useState<number | "">("");
+  const [deletingProject, setDeletingProject] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
   const filters = {
     ...(statusFilter ? { status: statusFilter as TaskStatus } : {}),
@@ -48,8 +60,6 @@ export const ProjectDetailPage = () => {
   const [title, setTitle] = useState("");
   const [selected, setSelected] = useState<Task | null>(null);
 
-  // Suggestions across all tasks, to badge cards. We fetch the selected task's
-  // suggestions inside TaskDetail; for board badges we keep it lightweight.
   const { data: selectedSuggestions } = useTaskSuggestions(selected?.id ?? 0);
 
   const create = useMutation({
@@ -75,16 +85,6 @@ export const ProjectDetailPage = () => {
   const handleMove = (task: Task, status: TaskStatus) =>
     move.mutate({ taskId: task.id, status });
 
-  const delProject = useMutation({
-    mutationFn: () => deleteProject(id),
-    onSuccess: () => {
-      navigate("/workspace");
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
-    onError: (e: any) =>
-      alert(e?.response?.data?.error ?? "Failed to delete project"),
-  });
-
   const clearFilters = () => {
     setStatusFilter("");
     setAssigneeFilter("");
@@ -98,38 +98,56 @@ export const ProjectDetailPage = () => {
     ? (selectedSuggestions ?? []).map((s) => ({ taskId: s.taskId, type: s.type }))
     : [];
 
-  // Use the live task from the refetched board data so the side panel reflects
-  // status changes (e.g. accept -> validated) immediately, instead of the stale
-  // object captured when the card was clicked.
   const selectedTask = tasks?.find((t) => t.id === selected?.id) ?? selected;
 
-  // Backlog WIP cap — disable "Add task" and show a hint when full. The board's
-  // yellow n/cap badge stays; this is the form-side guard so the button can't
-  // be clicked into a server 400.
   const backlogTasks = (tasks ?? []).filter((t) => t.status === "backlog");
   const backlogFull = backlogTasks.length >= wipLimitFor("backlog");
 
   return (
     <div className="space-y-6">
-      <Button
-        variant="outline"
-        size="sm"
-        className="gap-1"
-        onClick={() => navigate("/workspace")}
-      >
-        <ChevronLeft />
-        Projects
-      </Button>
-
-      {canDeleteProject && (
+      <div className="flex items-center justify-between">
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          onClick={() => navigate(`/workspace/${id}/settings`)}
+          className="gap-1"
+          onClick={() => navigate("/workspace")}
         >
-          Settings
+          <ChevronLeft />
+          Projects
         </Button>
-      )}
+
+        {canDeleteProject && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon" className="size-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Open actions</span>
+                </Button>
+              }
+            >
+              Open actions
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => navigate(`/workspace/${id}/settings`)}
+                >
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() =>
+                    setDeletingProject({ id, name: "this project" })
+                  }
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
 
       <div>
         <h1 className="text-2xl font-semibold">Board</h1>
@@ -137,22 +155,6 @@ export const ProjectDetailPage = () => {
           Server-authoritative task states. Illegal moves are rejected by the API.
         </p>
       </div>
-
-      {canDeleteProject && (
-        <div className="flex justify-end">
-          <Button
-            variant="destructive"
-            disabled={delProject.isPending}
-            onClick={() => {
-              if (window.confirm("Delete this project and all its tasks?")) {
-                delProject.mutate();
-              }
-            }}
-          >
-            Delete project
-          </Button>
-        </div>
-      )}
 
       <div className="flex items-end gap-2">
         <div className="flex-1">
@@ -245,6 +247,22 @@ export const ProjectDetailPage = () => {
           projectId={id}
           open={!!selected}
           onOpenChange={(o) => !o && setSelected(null)}
+        />
+      )}
+
+      {deletingProject && (
+        <ConfirmDeleteDialog
+          project={{
+            id: deletingProject.id,
+            name: deletingProject.name,
+            description: null,
+            createdAt: "",
+            updatedAt: "",
+          }}
+          onOpenChange={(open) => {
+            if (!open) setDeletingProject(null);
+          }}
+          onSuccess={() => navigate("/workspace")}
         />
       )}
     </div>

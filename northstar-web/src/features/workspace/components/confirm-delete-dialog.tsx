@@ -12,11 +12,13 @@ import type { Project } from "../types/workspace";
 type ConfirmDeleteDialogProps = {
   project: Project | null;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 };
 
 export const ConfirmDeleteDialog = ({
   project,
   onOpenChange,
+  onSuccess,
 }: ConfirmDeleteDialogProps) => {
   const deleteMutation = useDeleteProject();
 
@@ -46,7 +48,10 @@ export const ConfirmDeleteDialog = ({
             variant="destructive"
             onClick={() =>
               deleteMutation.mutate(project.id, {
-                onSuccess: () => onOpenChange(false),
+                onSuccess: () => {
+                  onSuccess?.();
+                  onOpenChange(false);
+                },
               })
             }
             disabled={deleteMutation.isPending}
