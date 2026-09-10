@@ -190,6 +190,14 @@ export const assignTask = async (
 // Delete is server-gated by canDeleteTask (admin/manager today). The UI button
 // is shown only for those roles as a UX hint, but the server makes the final
 // decision — a non-privileged user's request is rejected with 403.
+export const updateTask = async (
+  id: number,
+  data: { title?: string; description?: string | null },
+): Promise<Task> => {
+  const res = await api.patch(`/workspace/tasks/${id}`, data);
+  return toTask(res.data);
+};
+
 export const deleteTask = async (taskId: number): Promise<{ id: number }> => {
   const res = await api.delete(`/workspace/tasks/${taskId}`);
   return res.data;

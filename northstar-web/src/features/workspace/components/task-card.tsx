@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   COLUMN_LABELS,
@@ -25,23 +27,62 @@ interface TaskCardProps {
   task: Task;
   suggestionTypes: SuggestionType[];
   onOpen: (task: Task) => void;
+  onUpdate?: (task: Task, title: string) => void;
 }
 
-export const TaskCard = ({ task, suggestionTypes, onOpen }: TaskCardProps) => {
+export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardProps) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+
+  const handleSave = () => {
+    if (editTitle.trim() && editTitle !== task.title) {
+      onUpdate?.(task, editTitle.trim());
+    } else {
+      setEditTitle(task.title);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      setEditTitle(task.title);
+      setIsEditing(false);
+    }
+  };
+
   return (
     <Card
       role="button"
       tabIndex={0}
-      onClick={() => onOpen(task)}
+      onClick={() => !isEditing && onOpen(task)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onOpen(task);
         }
       }}
-      className="cursor-pointer p-3 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        setIsEditing(true);
+      }}
+      className="group cursor-pointer p-3 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
-      <p className="text-sm font-medium leading-snug">{task.title}</p>
+      {isEditing ? (
+        <Input
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          autoFocus
+          onClick={(e) => e.stopPropagation()}
+          className="h-7 text-sm"
+        />
+      ) : (
+        <p className="text-sm font-medium leading-snug">{task.title}</p>
+      )}
+
       <p className="mt-1 text-xs text-muted-foreground">
         {COLUMN_LABELS[task.status]}
       </p>

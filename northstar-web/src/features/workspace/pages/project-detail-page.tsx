@@ -20,13 +20,14 @@ import {
 import { useProjectTasks } from "../hooks/use-project-tasks";
 import { useTaskSuggestions } from "../hooks/use-task-suggestions";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
-import { createTask, moveTask, getAssignableUsers } from "../api/workspace.api";
+import { createTask, moveTask, getAssignableUsers, getProject } from "../api/workspace.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
 import { Board } from "../components/board";
 import { TaskDetail } from "../components/task-detail";
 import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import { useUpdateProject } from "../hooks/use-update-project";
+import { useUpdateTask } from "../hooks/use-update-task";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
@@ -53,7 +54,7 @@ export const ProjectDetailPage = () => {
   const { data: tasks, isLoading, error } = useProjectTasks(id, filters);
   const { data: project } = useQuery({
     queryKey: workspaceKeys.project(id),
-    queryFn: () => import("../api/workspace.api").then((m) => m.getProject(id)),
+    queryFn: () => getProject(id),
     enabled: id > 0,
   });
 
@@ -66,6 +67,7 @@ export const ProjectDetailPage = () => {
   const [title, setTitle] = useState("");
   const [selected, setSelected] = useState<Task | null>(null);
   const updateMutation = useUpdateProject();
+  const updateTaskMutation = useUpdateTask();
 
   const { data: selectedSuggestions } = useTaskSuggestions(selected?.id ?? 0);
 
@@ -226,6 +228,9 @@ export const ProjectDetailPage = () => {
         suggestions={boardSuggestions}
         onOpenTask={setSelected}
         onMoveTask={handleMove}
+        onUpdateTask={(task, title) =>
+          updateTaskMutation.mutate({ id: task.id, data: { title } })
+        }
       />
 
       {selected && (
@@ -263,11 +268,7 @@ export const ProjectDetailPage = () => {
                       },
                     },
                     {
-                      onSuccess: () => {
-                        queryClient.invalidateQueries({
-                          queryKey: workspaceKeys.project(id),
-                        });
-                      },
+                      // No auto-close - let user close manually like task panel
                     },
                   );
                 }}
@@ -347,6 +348,12 @@ export const ProjectDetailPage = () => {
             createdAt: "",
             updatedAt: "",
           }}
+          totalTasks={tasks?.length ?? 0}
+          totalAssignees={
+            new Set(
+              tasks?.map((t) => t.assigneeId).filter((id) => id != null) ?? [],
+            ).size
+          }
           onOpenChange={(open) => {
             if (!open) setDeletingProject(null);
           }}

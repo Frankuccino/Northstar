@@ -30,6 +30,7 @@ interface BoardColumnProps {
   tasks: Task[];
   suggestionByTask: Map<number, SuggestionType[]>;
   onOpenTask: (task: Task) => void;
+  onUpdateTask?: (task: Task, title: string) => void;
   // While a card is being dragged, only legal drop targets should accept it.
   // `allowedTargets` is null when no drag is in progress (all columns normal).
   allowedTargets: Set<TaskStatus> | null;
@@ -40,6 +41,7 @@ const BoardColumn = ({
   tasks,
   suggestionByTask,
   onOpenTask,
+  onUpdateTask,
   allowedTargets,
 }: BoardColumnProps) => {
   // A column is a valid drop zone during a drag only if it's the active card's
@@ -93,6 +95,7 @@ const BoardColumn = ({
               task={task}
               suggestionTypes={suggestionByTask.get(task.id) ?? []}
               onOpen={onOpenTask}
+              onUpdate={onUpdateTask}
             />
           ))
         )}
@@ -105,12 +108,14 @@ interface DraggableTaskCardProps {
   task: Task;
   suggestionTypes: SuggestionType[];
   onOpen: (task: Task) => void;
+  onUpdate?: (task: Task, title: string) => void;
 }
 
 const DraggableTaskCard = ({
   task,
   suggestionTypes,
   onOpen,
+  onUpdate,
 }: DraggableTaskCardProps) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: task.id });
@@ -126,6 +131,7 @@ const DraggableTaskCard = ({
         task={task}
         suggestionTypes={suggestionTypes}
         onOpen={onOpen}
+        onUpdate={onUpdate}
       />
     </div>
   );
@@ -136,6 +142,7 @@ interface BoardProps {
   suggestions: { taskId: number; type: SuggestionType }[];
   onOpenTask: (task: Task) => void;
   onMoveTask: (task: Task, status: TaskStatus) => void;
+  onUpdateTask?: (task: Task, title: string) => void;
 }
 
 export const Board = ({
@@ -143,6 +150,7 @@ export const Board = ({
   suggestions,
   onOpenTask,
   onMoveTask,
+  onUpdateTask,
 }: BoardProps) => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const sensors = useSensors(
@@ -214,6 +222,7 @@ export const Board = ({
             tasks={tasks.filter((t) => t.status === status)}
             suggestionByTask={suggestionByTask}
             onOpenTask={onOpenTask}
+            onUpdateTask={onUpdateTask}
             allowedTargets={allowedTargets}
           />
         ))}
