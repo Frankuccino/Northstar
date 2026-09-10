@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, MoreHorizontal } from "lucide-react";
+import { ChevronLeft, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,12 +12,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useProjectTasks } from "../hooks/use-project-tasks";
 import { useTaskSuggestions } from "../hooks/use-task-suggestions";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
@@ -27,6 +26,7 @@ import { workspaceKeys } from "../api/workspace-query-keys";
 import { Board } from "../components/board";
 import { TaskDetail } from "../components/task-detail";
 import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
+import { useUpdateProject } from "../hooks/use-update-project";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
@@ -40,6 +40,7 @@ export const ProjectDetailPage = () => {
 
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "">("");
   const [assigneeFilter, setAssigneeFilter] = useState<number | "">("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [deletingProject, setDeletingProject] = useState<{
     id: number;
     name: string;
@@ -50,6 +51,11 @@ export const ProjectDetailPage = () => {
     ...(assigneeFilter !== "" ? { assigneeId: assigneeFilter as number } : {}),
   };
   const { data: tasks, isLoading, error } = useProjectTasks(id, filters);
+  const { data: project } = useQuery({
+    queryKey: workspaceKeys.project(id),
+    queryFn: () => import("../api/workspace.api").then((m) => m.getProject(id)),
+    enabled: id > 0,
+  });
 
   const { data: assignableUsers } = useQuery({
     queryKey: workspaceKeys.assignableUsers(id),
@@ -59,6 +65,7 @@ export const ProjectDetailPage = () => {
 
   const [title, setTitle] = useState("");
   const [selected, setSelected] = useState<Task | null>(null);
+  const updateMutation = useUpdateProject();
 
   const { data: selectedSuggestions } = useTaskSuggestions(selected?.id ?? 0);
 
@@ -117,43 +124,23 @@ export const ProjectDetailPage = () => {
         </Button>
 
         {canDeleteProject && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="ghost" size="icon" className="size-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Open actions</span>
-                </Button>
-              }
-            >
-              Open actions
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={() => navigate(`/workspace/${id}/settings`)}
-                >
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-red-600"
-                  onClick={() =>
-                    setDeletingProject({ id, name: "this project" })
-                  }
-                >
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+            Settings
+          </Button>
         )}
       </div>
 
       <div>
-        <h1 className="text-2xl font-semibold">Board</h1>
-        <p className="text-sm text-muted-foreground">
-          Server-authoritative task states. Illegal moves are rejected by the API.
-        </p>
+        <h1 className="text-2xl font-semibold">{project?.name ?? "Board"}</h1>
+        {project?.description && (
+          <p className="text-sm text-muted-foreground">{project.description}</p>
+        )}
       </div>
 
       <div className="flex items-end gap-2">
@@ -250,6 +237,107 @@ export const ProjectDetailPage = () => {
         />
       )}
 
+      {/* Settings Sheet */}
+      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Project Settings</SheetTitle>
+            <div className="text-sm text-muted-foreground">
+              Edit project details or delete this project.
+            </div>
+          </SheetHeader>
+
+          {project && (
+            <div className="space-y-6">
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  updateMutation.mutate(
+                    {
+                      id: project.id,
+                      data: {
+                        name: String(formData.get("name") ?? ""),
+                        description: String(formData.get("description") ?? ""),
+                      },
+                    },
+                    {
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({
+                          queryKey: workspaceKeys.project(id),
+                        });
+                      },
+                    },
+                  );
+                }}
+              >
+                <div className="space-y-1">
+                  <Label htmlFor="edit-name">Name</Label>
+                  <Input
+                    id="edit-name"
+                    name="name"
+                    defaultValue={project.name}
+                    placeholder="Project name"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="edit-description">Description</Label>
+                  <Input
+                    id="edit-description"
+                    name="description"
+                    defaultValue={project.description ?? ""}
+                    placeholder="Optional"
+                  />
+                </div>
+
+                {updateMutation.isError && (
+                  <p className="text-sm text-red-600">
+                    {(updateMutation.error as any)?.response?.data?.error ??
+                      "Failed to update project."}
+                  </p>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSettingsOpen(false)}
+                    disabled={updateMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
+              </form>
+
+              <div className="space-y-2 border-t pt-4">
+                <h3 className="text-sm font-medium">Danger zone</h3>
+                <p className="text-sm text-muted-foreground">
+                  Deleting a project removes it and all associated tasks
+                  permanently.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() =>
+                    setDeletingProject({ id: project.id, name: project.name })
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete project
+                </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {deletingProject && (
         <ConfirmDeleteDialog
           project={{
@@ -262,7 +350,10 @@ export const ProjectDetailPage = () => {
           onOpenChange={(open) => {
             if (!open) setDeletingProject(null);
           }}
-          onSuccess={() => navigate("/workspace")}
+          onSuccess={() => {
+            setSettingsOpen(false);
+            navigate("/workspace");
+          }}
         />
       )}
     </div>
