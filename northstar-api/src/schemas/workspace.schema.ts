@@ -13,6 +13,11 @@ export const createTaskSchema = z.object({
   assigneeId: z.number().int().positive().optional(),
 });
 
+export const updateTaskSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+});
+
 export const moveTaskSchema = z.object({
   status: z.enum(TASK_STATUSES),
 });

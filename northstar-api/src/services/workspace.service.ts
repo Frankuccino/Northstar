@@ -42,6 +42,16 @@ export const updateProject = async (id: number, data: { name?: string; descripti
   return project;
 };
 
+export const updateTask = async (id: number, data: { title?: string; description?: string | null }) => {
+  const [task] = await db
+    .update(tasks)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(tasks.id, id))
+    .returning();
+  if (!task) throw new Error("Task not found");
+  return task;
+};
+
 // ---- Tasks ----------------------------------------------------------------
 // Count tasks in a column for a project (optionally excluding one task, e.g. the
 // card being moved so it doesn't count against its own destination cap).

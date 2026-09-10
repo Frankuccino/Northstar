@@ -6,6 +6,7 @@ import {
   createProjectSchema,
   updateProjectSchema,
   createTaskSchema,
+  updateTaskSchema,
   moveTaskSchema,
   assignTaskSchema,
   generateSuggestionSchema,
@@ -20,6 +21,7 @@ import {
   getProjectHandler,
   updateProjectHandler,
   createTaskHandler,
+  updateTaskHandler,
   listTasksHandler,
   moveTaskHandler,
   assignTaskHandler,
@@ -87,6 +89,13 @@ router.patch(
   "/tasks/:id/assign",
   validate(assignTaskSchema),
   assignTaskHandler,
+);
+
+// Update a task's title/description. Task not found → 404.
+router.patch(
+  "/tasks/:id",
+  validate(updateTaskSchema),
+  updateTaskHandler,
 );
 
 // AI suggestions: generation is admin/manager; listing is any authed user.
