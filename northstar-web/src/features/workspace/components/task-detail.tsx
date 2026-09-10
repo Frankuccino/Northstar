@@ -17,7 +17,6 @@ import {
   generateSuggestion,
   approveCommit,
   markValidated,
-  deleteTask,
   getAssignableUsers,
   assignTask,
   createInvitation,
@@ -29,6 +28,7 @@ import {
   type Task,
   type SuggestionType,
 } from "../types/workspace";
+import { ConfirmDeleteTaskDialog } from "./confirm-delete-task-dialog";
 
 const SUGGESTION_LABEL: Record<SuggestionType, string> = {
   context: "Context",
@@ -58,6 +58,7 @@ export const TaskDetail = ({
   const [commitMessage, setCommitMessage] = useState("");
   const [commitJustification, setCommitJustification] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({
@@ -106,15 +107,6 @@ export const TaskDetail = ({
 
   const currentUser = useCurrentUser();
   const canDelete = currentUser?.role === "admin" || currentUser?.role === "manager";
-
-  const del = useMutation({
-    mutationFn: () => deleteTask(task.id),
-    onSuccess: () => {
-      invalidate();
-      onOpenChange(false);
-    },
-    onError: (e: any) => setError(e?.response?.data?.error ?? "Delete failed"),
-  });
 
   // ---- Assignee picker -----------------------------------------------------
   const { data: users, isLoading: usersLoading } = useQuery({
@@ -165,7 +157,7 @@ export const TaskDetail = ({
           Status: {COLUMN_LABELS[task.status]}
         </p>
 
-        <section className="flex h-[55vh] flex-col">
+        <section className="flex max-h-[30vh] flex-col">
           <h4 className="mb-2 text-sm font-semibold">AI suggestions</h4>
           <div className="flex-1 overflow-y-auto pr-1">
             {isLoading ? (
@@ -328,8 +320,7 @@ export const TaskDetail = ({
           <section className="border-t pt-3">
             <Button
               variant="destructive"
-              disabled={del.isPending}
-              onClick={() => del.mutate()}
+              onClick={() => setDeletingTask(task)}
             >
               Delete task
             </Button>
@@ -341,6 +332,17 @@ export const TaskDetail = ({
             {error}
           </p>
         )}
+
+        <ConfirmDeleteTaskDialog
+          task={deletingTask}
+          onOpenChange={(open) => {
+            if (!open) setDeletingTask(null);
+          }}
+          onSuccess={() => {
+            invalidate();
+            onOpenChange(false);
+          }}
+        />
       </SheetContent>
     </Sheet>
   );
