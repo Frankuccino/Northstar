@@ -9,8 +9,8 @@ export const useUpdateProject = () => {
     mutationFn: ({ id, data }: { id: number; data: { name?: string; description?: string | null } }) =>
       updateProject(id, data),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.project(data.id) });
-      queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
+      // Update cache immediately - no invalidateQueries to avoid flicker
+      queryClient.setQueryData(workspaceKeys.project(data.id), data);
     },
   });
 };
