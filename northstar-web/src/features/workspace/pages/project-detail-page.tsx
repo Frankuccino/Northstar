@@ -268,7 +268,9 @@ export const ProjectDetailPage = () => {
                       },
                     },
                     {
-                      // No auto-close - let user close manually like task panel
+                      onSuccess: () => {
+                        setSettingsOpen(false);
+                      },
                     },
                   );
                 }}
