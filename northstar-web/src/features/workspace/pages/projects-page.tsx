@@ -12,7 +12,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
 import { ProjectRowActions } from "../components/project-row-actions";
 import { EditProjectDialog } from "../components/edit-project-dialog";
-import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
+import { DisintegrateItem } from "@/features/theme/disintegrate-item";
+import { useDeleteProject } from "../hooks/use-delete-project";
 import type { Project } from "../types/workspace";
 
 export const ProjectsPage = () => {
@@ -25,7 +26,8 @@ export const ProjectsPage = () => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [disintegratingProjectId, setDisintegratingProjectId] = useState<number | null>(null);
+  const deleteProjectMutation = useDeleteProject();
 
   const create = useMutation({
     mutationFn: () =>
@@ -79,36 +81,46 @@ export const ProjectsPage = () => {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(data ?? []).map((project) => (
-          <Card
+          <DisintegrateItem
             key={project.id}
-            className="group relative p-4 hover:border-primary/60"
+            active={disintegratingProjectId === project.id}
+            onComplete={() => {
+              setDisintegratingProjectId(null);
+              deleteProjectMutation.mutate(project.id, {
+                onSuccess: () => {
+                  queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
+                },
+              });
+            }}
           >
-            {isAdmin && (
-              <div className="absolute right-2 top-2">
-                <ProjectRowActions
-                  project={project}
-                  onEdit={setEditingProject}
-                  onDelete={setDeletingProject}
-                />
-              </div>
-            )}
-            <div
-              className="cursor-pointer pr-8"
-              onClick={() => navigate(`/workspace/${project.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") navigate(`/workspace/${project.id}`);
-              }}
-              role="button"
-              tabIndex={0}
-            >
-              <h3 className="font-medium">{project.name}</h3>
-              {project.description && (
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {project.description}
-                </p>
+            <Card className="group relative p-4 hover:border-primary/60">
+              {isAdmin && (
+                <div className="absolute right-2 top-2">
+                  <ProjectRowActions
+                    project={project}
+                    onEdit={setEditingProject}
+                    onDelete={(p) => setDisintegratingProjectId(p.id)}
+                  />
+                </div>
               )}
-            </div>
-          </Card>
+              <div
+                className="cursor-pointer pr-8"
+                onClick={() => navigate(`/workspace/${project.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") navigate(`/workspace/${project.id}`);
+                }}
+                role="button"
+                tabIndex={0}
+              >
+                <h3 className="font-medium">{project.name}</h3>
+                {project.description && (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {project.description}
+                  </p>
+                )}
+              </div>
+            </Card>
+          </DisintegrateItem>
         ))}
       </div>
 
@@ -116,13 +128,6 @@ export const ProjectsPage = () => {
         open={!!editingProject}
         project={editingProject}
         onClose={() => setEditingProject(null)}
-      />
-
-      <ConfirmDeleteDialog
-        project={deletingProject}
-        onOpenChange={(open) => {
-          if (!open) setDeletingProject(null);
-        }}
       />
     </div>
   );

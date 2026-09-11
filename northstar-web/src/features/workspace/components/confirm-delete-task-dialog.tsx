@@ -50,14 +50,10 @@ export const ConfirmDeleteTaskDialog = ({
           </Button>
           <Button
             variant="destructive"
-            onClick={() =>
-              deleteMutation.mutate(task.id, {
-                onSuccess: () => {
-                  onSuccess?.();
-                  onOpenChange(false);
-                },
-              })
-            }
+            onClick={() => {
+              onOpenChange(false);
+              onSuccess?.();
+            }}
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending ? "Deleting..." : "Delete"}

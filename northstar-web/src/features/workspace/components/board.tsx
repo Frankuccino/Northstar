@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { TaskCard } from "./task-card";
 import {
@@ -24,6 +24,7 @@ import {
   type SuggestionType,
   type TaskStatus,
 } from "../types/workspace";
+import { DisintegrateItem } from "@/features/theme/disintegrate-item";
 
 interface BoardColumnProps {
   status: TaskStatus;
@@ -31,6 +32,8 @@ interface BoardColumnProps {
   suggestionByTask: Map<number, SuggestionType[]>;
   onOpenTask: (task: Task) => void;
   onUpdateTask?: (task: Task, title: string) => void;
+  disintegratingTaskId?: number | null;
+  onDisintegrateComplete?: (taskId: number) => void;
   // While a card is being dragged, only legal drop targets should accept it.
   // `allowedTargets` is null when no drag is in progress (all columns normal).
   allowedTargets: Set<TaskStatus> | null;
@@ -42,6 +45,8 @@ const BoardColumn = ({
   suggestionByTask,
   onOpenTask,
   onUpdateTask,
+  disintegratingTaskId,
+  onDisintegrateComplete,
   allowedTargets,
 }: BoardColumnProps) => {
   // A column is a valid drop zone during a drag only if it's the active card's
@@ -96,6 +101,8 @@ const BoardColumn = ({
               suggestionTypes={suggestionByTask.get(task.id) ?? []}
               onOpen={onOpenTask}
               onUpdate={onUpdateTask}
+              disintegrating={disintegratingTaskId === task.id}
+              onDisintegrateComplete={() => onDisintegrateComplete?.(task.id)}
             />
           ))
         )}
@@ -109,6 +116,8 @@ interface DraggableTaskCardProps {
   suggestionTypes: SuggestionType[];
   onOpen: (task: Task) => void;
   onUpdate?: (task: Task, title: string) => void;
+  disintegrating?: boolean;
+  onDisintegrateComplete?: () => void;
 }
 
 const DraggableTaskCard = ({
@@ -116,6 +125,8 @@ const DraggableTaskCard = ({
   suggestionTypes,
   onOpen,
   onUpdate,
+  disintegrating,
+  onDisintegrateComplete,
 }: DraggableTaskCardProps) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: task.id });
@@ -127,12 +138,14 @@ const DraggableTaskCard = ({
       {...listeners}
       className={isDragging ? "opacity-40" : ""}
     >
-      <TaskCard
-        task={task}
-        suggestionTypes={suggestionTypes}
-        onOpen={onOpen}
-        onUpdate={onUpdate}
-      />
+      <DisintegrateItem active={disintegrating ?? false} onComplete={onDisintegrateComplete}>
+        <TaskCard
+          task={task}
+          suggestionTypes={suggestionTypes}
+          onOpen={onOpen}
+          onUpdate={onUpdate}
+        />
+      </DisintegrateItem>
     </div>
   );
 };
@@ -143,6 +156,8 @@ interface BoardProps {
   onOpenTask: (task: Task) => void;
   onMoveTask: (task: Task, status: TaskStatus) => void;
   onUpdateTask?: (task: Task, title: string) => void;
+  disintegratingTaskId?: number | null;
+  onDisintegrateComplete?: (taskId: number) => void;
 }
 
 export const Board = ({
@@ -151,11 +166,22 @@ export const Board = ({
   onOpenTask,
   onMoveTask,
   onUpdateTask,
+  disintegratingTaskId,
+  onDisintegrateComplete,
 }: BoardProps) => {
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [localTasks, setLocalTasks] = useState<Task[] | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
+
+  // Use localTasks during drag for instant visual feedback, otherwise use props
+  const displayTasks = localTasks ?? tasks;
+
+  // Clear local override when server data changes
+  useEffect(() => {
+    setLocalTasks(null);
+  }, [tasks]);
 
   // Pointer-based collision: a drop only registers when the pointer is directly
   // inside a registered (enabled) droppable. Disabled (greyed/illegal) columns
@@ -180,7 +206,7 @@ export const Board = ({
     suggestionByTask.set(s.taskId, list);
   }
 
-  const taskById = new Map(tasks.map((t) => [t.id, t]));
+  const taskById = new Map(displayTasks.map((t) => [t.id, t]));
   const activeTask = activeId != null ? taskById.get(activeId) ?? null : null;
 
   // Legal drop targets for the card currently being dragged. Null = idle.
@@ -194,16 +220,20 @@ export const Board = ({
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveId(null);
     const { active, over } = event;
+    setActiveId(null);
     if (!over) return;
     const target = over.id as TaskStatus;
     const moved = taskById.get(Number(active.id));
-    // Defense in depth: the UI already disables illegal columns, but the server
-    // is authoritative. `over` will only ever be a legal target here because
-    // illegal columns are non-droppable; this guard still validates.
     if (!moved || !BOARD_COLUMNS.includes(target)) return;
     if (moved.status === target) return;
+    
+    // Instantly update local state for seamless visual feedback
+    setLocalTasks((prev) => {
+      const base = prev ?? tasks;
+      return base.map((t) => (t.id === moved.id ? { ...t, status: target } : t));
+    });
+    
     onMoveTask(moved, target);
   };
 
@@ -219,10 +249,12 @@ export const Board = ({
           <BoardColumn
             key={status}
             status={status}
-            tasks={tasks.filter((t) => t.status === status)}
+            tasks={displayTasks.filter((t) => t.status === status)}
             suggestionByTask={suggestionByTask}
             onOpenTask={onOpenTask}
             onUpdateTask={onUpdateTask}
+            disintegratingTaskId={disintegratingTaskId}
+            onDisintegrateComplete={onDisintegrateComplete}
             allowedTargets={allowedTargets}
           />
         ))}

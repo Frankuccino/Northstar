@@ -28,7 +28,6 @@ import {
   type Task,
   type SuggestionType,
 } from "../types/workspace";
-import { ConfirmDeleteTaskDialog } from "./confirm-delete-task-dialog";
 
 const SUGGESTION_LABEL: Record<SuggestionType, string> = {
   context: "Context",
@@ -43,6 +42,7 @@ interface TaskDetailProps {
   projectId: number;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onDeleteRequest?: (task: Task) => void;
 }
 
 export const TaskDetail = ({
@@ -50,6 +50,7 @@ export const TaskDetail = ({
   projectId,
   open,
   onOpenChange,
+  onDeleteRequest,
 }: TaskDetailProps) => {
   const queryClient = useQueryClient();
   const { data: suggestions, isLoading } = useTaskSuggestions(task.id);
@@ -58,7 +59,6 @@ export const TaskDetail = ({
   const [commitMessage, setCommitMessage] = useState("");
   const [commitJustification, setCommitJustification] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({
@@ -320,7 +320,7 @@ export const TaskDetail = ({
           <section className="border-t pt-3">
             <Button
               variant="destructive"
-              onClick={() => setDeletingTask(task)}
+              onClick={() => onDeleteRequest?.(task)}
             >
               Delete task
             </Button>
@@ -333,16 +333,6 @@ export const TaskDetail = ({
           </p>
         )}
 
-        <ConfirmDeleteTaskDialog
-          task={deletingTask}
-          onOpenChange={(open) => {
-            if (!open) setDeletingTask(null);
-          }}
-          onSuccess={() => {
-            invalidate();
-            onOpenChange(false);
-          }}
-        />
       </SheetContent>
     </Sheet>
   );
