@@ -2,7 +2,6 @@
   "name": "northstar",
   "version": "1.0.0",
   "private": true,
-
   "scripts": {
     "dev": "concurrently \"cd northstar-web && npm run dev\" \"cd northstar-api && npm run dev\""
   },
