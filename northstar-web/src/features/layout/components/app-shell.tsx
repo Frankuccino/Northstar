@@ -1,17 +1,15 @@
 import { useState } from "react";
 import { Outlet, Link } from "react-router-dom";
-import { Menu, X, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Menu, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { Sidebar } from "./sidebar";
 import { UserMenu } from "./user-menu";
-import { useLogout } from "@/features/auth/hooks/use-logout";
 
 export const AppShell = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const logoutMutation = useLogout();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -81,18 +79,6 @@ export const AppShell = () => {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2 text-muted-foreground"
-              disabled={logoutMutation.isPending}
-              onClick={() => logoutMutation.mutate()}
-            >
-              <LogOut className="size-4" />
-              <span className="hidden sm:inline">
-                {logoutMutation.isPending ? "Signing out…" : "Log out"}
-              </span>
-            </Button>
             <UserMenu />
           </div>
         </header>
