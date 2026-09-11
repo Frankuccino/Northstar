@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 
 import { Sidebar } from "./sidebar";
 import { UserMenu } from "./user-menu";
-import { ThemeToggle } from "./theme-toggle";
 import { useLogout } from "@/features/auth/hooks/use-logout";
 
 export const AppShell = () => {
@@ -82,7 +81,6 @@ export const AppShell = () => {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
             <Button
               variant="ghost"
               size="sm"

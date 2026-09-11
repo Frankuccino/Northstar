@@ -1,5 +1,6 @@
 import { QueryProvider } from "./query-provider";
 import { RouterProviderWrapper } from "./router-provider";
+import { ThemeProvider } from "@/features/theme/theme-context";
 import { Toaster } from "sonner";
 
 type Props = {
@@ -8,10 +9,12 @@ type Props = {
 
 export const AppProvider = ({ children }: Props) => {
   return (
-    <QueryProvider>
-      <RouterProviderWrapper />
-      {children}
-      <Toaster richColors />
-    </QueryProvider>
+    <ThemeProvider>
+      <QueryProvider>
+        <RouterProviderWrapper />
+        {children}
+        <Toaster richColors />
+      </QueryProvider>
+    </ThemeProvider>
   );
 };

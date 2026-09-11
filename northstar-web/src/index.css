@@ -162,4 +162,22 @@
   .dark ::-webkit-scrollbar-thumb:hover {
     background: oklch(1 0 0 / 25%);
   }
+
+  /* Glassmorphism utility */
+  .glass {
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+  }
+}
+
+/* Dust particle disintegration animation */
+@keyframes dust-particle {
+  0% {
+    transform: translate(0, 0) rotate(var(--rotation)) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--vx), calc(var(--vy) + 100px)) rotate(var(--rotation)) scale(0);
+    opacity: 0;
+  }
 }

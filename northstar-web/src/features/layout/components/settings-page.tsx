@@ -1,10 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 import { useCurrentUser } from "@/features/auth/hooks/use-current-user";
+import { ThemeSelector } from "@/features/theme/theme-selector";
 
-// Minimal profile/settings surface so the account menu has a real destination.
-// Role is read-only here (server-owned). LLM keys are intentionally NOT shown
-// (server-side env only) — see docs/FRONTEND_IA_AND_UI.md.
 export const SettingsPage = () => {
   const user = useCurrentUser();
 
@@ -13,7 +10,7 @@ export const SettingsPage = () => {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Your account details.
+          Customize your experience.
         </p>
       </div>
 
@@ -30,6 +27,15 @@ export const SettingsPage = () => {
             <span className="text-muted-foreground">Role</span>
             <span className="font-medium">{user?.role ?? "—"}</span>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Appearance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ThemeSelector />
         </CardContent>
       </Card>
     </div>
