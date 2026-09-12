@@ -31,6 +31,7 @@ import { useUpdateTask } from "../hooks/use-update-task";
 import { useDeleteTask } from "../hooks/use-delete-task";
 import { useDeleteProject } from "../hooks/use-delete-project";
 import { ProjectTeam } from "../components/project-team";
+import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
@@ -46,6 +47,10 @@ export const ProjectDetailPage = () => {
   const [assigneeFilter, setAssigneeFilter] = useState<number | "">("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [disintegratingProject, setDisintegratingProject] = useState(false);
+  const [deletingProject, setDeletingProject] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
   const filters = {
     ...(statusFilter ? { status: statusFilter as TaskStatus } : {}),
@@ -134,16 +139,17 @@ export const ProjectDetailPage = () => {
   const backlogFull = backlogTasks.length >= wipLimitFor("backlog");
 
   return (
-    <DisintegrateItem
-      active={disintegratingProject}
-      onComplete={() => {
-        setDisintegratingProject(false);
-        deleteProjectMutation.mutate(id, {
-          onSuccess: () => navigate("/workspace"),
-        });
-      }}
-    >
-      <div className="space-y-6">
+    <>
+      <DisintegrateItem
+        active={disintegratingProject}
+        onComplete={() => {
+          setDisintegratingProject(false);
+          deleteProjectMutation.mutate(id, {
+            onSuccess: () => navigate("/workspace"),
+          });
+        }}
+      >
+        <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Button
             variant="outline"
@@ -373,7 +379,7 @@ export const ProjectDetailPage = () => {
                     className="gap-1"
                     onClick={() => {
                       setSettingsOpen(false);
-                      setDisintegratingProject(true);
+                      setDeletingProject({ id: project.id, name: project.name });
                     }}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -389,6 +395,31 @@ export const ProjectDetailPage = () => {
           </SheetContent>
         </Sheet>
       </div>
-    </DisintegrateItem>
+      </DisintegrateItem>
+
+      {deletingProject && (
+        <ConfirmDeleteDialog
+          project={{
+            id: deletingProject.id,
+            name: deletingProject.name,
+            description: null,
+            createdAt: "",
+            updatedAt: "",
+          }}
+          totalTasks={tasks?.length ?? 0}
+          totalAssignees={
+            new Set(
+              tasks?.map((t) => t.assigneeId).filter((id) => id != null) ?? [],
+            ).size
+          }
+          onOpenChange={(open) => {
+            if (!open) setDeletingProject(null);
+          }}
+          onConfirm={() => {
+            setDisintegratingProject(true);
+          }}
+        />
+      )}
+    </>
   );
 };
