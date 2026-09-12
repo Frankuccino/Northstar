@@ -14,6 +14,7 @@ import { ProjectRowActions } from "../components/project-row-actions";
 import { EditProjectDialog } from "../components/edit-project-dialog";
 import { DisintegrateItem } from "@/features/theme/disintegrate-item";
 import { useDeleteProject } from "../hooks/use-delete-project";
+import { toast } from "sonner";
 import type { Project } from "../types/workspace";
 
 export const ProjectsPage = () => {
@@ -36,6 +37,10 @@ export const ProjectsPage = () => {
       setName("");
       setDescription("");
       queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
+      toast.success("Project created");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.error ?? "Failed to create project");
     },
   });
 

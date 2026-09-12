@@ -33,6 +33,7 @@ import { useDeleteProject } from "../hooks/use-delete-project";
 import { ProjectTeam } from "../components/project-team";
 import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import { ConfirmDeleteTaskDialog } from "../components/confirm-delete-task-dialog";
+import { toast } from "sonner";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
@@ -88,6 +89,10 @@ export const ProjectDetailPage = () => {
       queryClient.invalidateQueries({
         queryKey: workspaceKeys.projectTasks(id, filters),
       });
+      toast.success("Task created");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.error ?? "Failed to create task");
     },
   });
 

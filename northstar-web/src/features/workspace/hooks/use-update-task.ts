@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateTask } from "../api/workspace.api";
 import { workspaceKeys } from "../api/workspace-query-keys";
+import { toast } from "sonner";
 
 export const useUpdateTask = () => {
   const queryClient = useQueryClient();
@@ -13,6 +14,10 @@ export const useUpdateTask = () => {
         old?.map((t: any) => (t.id === data.id ? { ...t, ...data } : t))
       );
       queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(data.projectId) });
+      toast.success("Task updated");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.error ?? "Failed to update task");
     },
   });
 };
