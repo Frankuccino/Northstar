@@ -51,8 +51,8 @@ export const ProjectsPage = () => {
         </p>
       </div>
 
-      <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-end">
-        <div className="flex-1">
+      <Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end">
+        <div className="flex-1 space-y-2">
           <Label htmlFor="project-name">New project</Label>
           <Input
             id="project-name"
@@ -61,7 +61,7 @@ export const ProjectsPage = () => {
             placeholder="Project name"
           />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 space-y-2">
           <Label htmlFor="project-desc">Description</Label>
           <Input
             id="project-desc"

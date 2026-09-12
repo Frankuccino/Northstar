@@ -175,8 +175,8 @@ export const ProjectDetailPage = () => {
           )}
         </div>
 
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-2">
             <Label htmlFor="task-title">New task</Label>
             <Input
               id="task-title"
@@ -199,8 +199,8 @@ export const ProjectDetailPage = () => {
           </p>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="w-44">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="w-44 space-y-2">
             <Label htmlFor="status-filter">Status</Label>
             <Select
               value={statusFilter}
@@ -219,7 +219,7 @@ export const ProjectDetailPage = () => {
             </Select>
           </div>
 
-          <div className="w-56">
+          <div className="w-56 space-y-2">
             <Label htmlFor="assignee-filter">Assignee</Label>
             <Select
               value={assigneeFilter === "" ? "unassigned" : String(assigneeFilter)}
