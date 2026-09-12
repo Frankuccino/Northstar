@@ -33,7 +33,7 @@ import { useDeleteProject } from "../hooks/use-delete-project";
 import { ProjectTeam } from "../components/project-team";
 import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import { ConfirmDeleteTaskDialog } from "../components/confirm-delete-task-dialog";
-import { toast } from "sonner";
+import { useToast } from "@/features/theme/toast";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
@@ -75,6 +75,7 @@ export const ProjectDetailPage = () => {
   const [selected, setSelected] = useState<Task | null>(null);
   const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const { toast } = useToast();
   const updateMutation = useUpdateProject();
   const updateTaskMutation = useUpdateTask();
   const deleteTaskMutation = useDeleteTask();
@@ -89,10 +90,10 @@ export const ProjectDetailPage = () => {
       queryClient.invalidateQueries({
         queryKey: workspaceKeys.projectTasks(id, filters),
       });
-      toast.success("Task created");
+      toast({ type: "success", title: "Task created" });
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.error ?? "Failed to create task");
+      toast({ type: "error", title: "Failed to create task", description: err?.response?.data?.error });
     },
   });
 

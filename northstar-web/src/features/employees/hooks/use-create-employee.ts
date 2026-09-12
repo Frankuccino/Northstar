@@ -3,19 +3,21 @@ import { useMutation } from "@tanstack/react-query";
 import { createEmployee } from "../api/employees.api";
 import { queryClient } from "@/lib/query-client";
 import { employeeKeys } from "../api/employee-query-keys";
-import { toast } from "sonner";
+import { useToast } from "@/features/theme/toast";
 
 export const useCreateEmployee = () => {
+  const { toast } = useToast();
+
   return useMutation({
     mutationFn: createEmployee,
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: employeeKeys.all });
-      toast.success("Employee created successfully");
+      toast({ type: "success", title: "Employee created" });
     },
 
     onError: () => {
-      toast.error("Failed to create employee");
+      toast({ type: "error", title: "Failed to create employee" });
     },
   });
 };

@@ -1,19 +1,20 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { deleteProject } from "../api/workspace.api";
 import { workspaceKeys } from "../api/workspace-query-keys";
-import { toast } from "sonner";
+import { useToast } from "@/features/theme/toast";
 
 export const useDeleteProject = () => {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   return useMutation({
     mutationFn: (id: number) => deleteProject(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
-      toast.success("Project deleted");
+      toast({ type: "success", title: "Project deleted" });
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.error ?? "Failed to delete project");
+      toast({ type: "error", title: "Failed to delete project", description: err?.response?.data?.error });
     },
   });
 };
