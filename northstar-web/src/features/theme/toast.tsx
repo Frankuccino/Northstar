@@ -10,10 +10,11 @@ interface Toast {
   title: string;
   description?: string;
   duration?: number;
+  progress: number;
 }
 
 interface ToastContextType {
-  toast: (toast: Omit<Toast, "id">) => void;
+  toast: (toast: Omit<Toast, "id" | "progress">) => void;
   dismiss: (id: string) => void;
 }
 
@@ -33,13 +34,25 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const toast = useCallback(
-    ({ type, title, description, duration = 4000 }: Omit<Toast, "id">) => {
+    ({ type, title, description, duration = 4000 }: Omit<Toast, "id" | "progress">) => {
       const id = crypto.randomUUID();
-      setToasts((prev) => [...prev, { id, type, title, description, duration }]);
+      setToasts((prev) => [...prev, { id, type, title, description, duration, progress: 100 }]);
 
-      setTimeout(() => {
-        dismiss(id);
-      }, duration);
+      const interval = 50;
+      const decrement = (interval / duration) * 100;
+      const timer = setInterval(() => {
+        setToasts((prev) =>
+          prev.map((t) => {
+            const newProgress = t.id === id ? Math.max(0, t.progress - decrement) : t.progress;
+            if (newProgress <= 0) {
+              clearInterval(timer);
+              setTimeout(() => dismiss(id), 200);
+              return { ...t, progress: 0 };
+            }
+            return t.id === id ? { ...t, progress: newProgress } : t;
+          }),
+        );
+      }, interval);
     },
     [dismiss],
   );
@@ -60,7 +73,7 @@ const ToastViewport = ({
   onDismiss: (id: string) => void;
 }) => {
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] flex flex-col gap-3">
+    <div className="fixed bottom-6 left-1/2 z-[9999] flex -translate-x-1/2 flex-col items-center gap-2">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
@@ -74,56 +87,82 @@ const ToastItem = ({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 
   const handleDismiss = () => {
     setIsExiting(true);
-    setTimeout(() => onDismiss(toast.id), 200);
+    setTimeout(() => onDismiss(toast.id), 250);
   };
 
-  const icons = {
-    success: <Check className="h-4 w-4" />,
-    error: <X className="h-4 w-4" />,
-    warning: <AlertTriangle className="h-4 w-4" />,
-    info: <Info className="h-4 w-4" />,
+  const config = {
+    success: {
+      icon: <Check className="h-3.5 w-3.5" strokeWidth={3} />,
+      color: "oklch(0.7 0.18 145)",
+      bg: "oklch(0.7 0.18 145 / 10%)",
+    },
+    error: {
+      icon: <X className="h-3.5 w-3.5" strokeWidth={3} />,
+      color: "oklch(0.65 0.22 25)",
+      bg: "oklch(0.65 0.22 25 / 10%)",
+    },
+    warning: {
+      icon: <AlertTriangle className="h-3.5 w-3.5" strokeWidth={3} />,
+      color: "oklch(0.75 0.18 60)",
+      bg: "oklch(0.75 0.18 60 / 10%)",
+    },
+    info: {
+      icon: <Info className="h-3.5 w-3.5" strokeWidth={3} />,
+      color: theme.colors.primary,
+      bg: `${theme.colors.primary}10`,
+    },
   };
 
-  const colors = {
-    success: "oklch(0.65 0.15 145)",
-    error: "oklch(0.6 0.22 25)",
-    warning: "oklch(0.7 0.18 60)",
-    info: theme.colors.primary,
-  };
+  const { icon, color, bg } = config[toast.type];
 
   return (
     <div
-      className={`group relative flex items-start gap-3 rounded-xl px-4 py-3 shadow-lg ring-1 transition-all duration-200 ${
-        isExiting ? "translate-x-full opacity-0" : "translate-x-0 opacity-100"
+      className={`relative w-[380px] overflow-hidden rounded-2xl border shadow-2xl transition-all duration-250 ${
+        isExiting ? "translate-y-4 scale-95 opacity-0" : "translate-y-0 scale-100 opacity-100"
       }`}
       style={{
-        background: theme.glass.background,
-        borderColor: theme.glass.border,
-        boxShadow: theme.glass.shadow,
-        backdropFilter: "blur(16px) saturate(180%)",
-        WebkitBackdropFilter: "blur(16px) saturate(180%)",
-        minWidth: "300px",
-        maxWidth: "420px",
+        background: theme.colors.card,
+        borderColor: `${color}20`,
+        boxShadow: `0 8px 32px ${color}15, 0 2px 8px oklch(0 0 0 / 8%)`,
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
       }}
     >
-      <div
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white"
-        style={{ background: colors[toast.type] }}
-      >
-        {icons[toast.type]}
+      {/* Progress bar */}
+      <div className="absolute bottom-0 left-0 right-0 h-[2px]" style={{ background: `${color}15` }}>
+        <div
+          className="h-full transition-all duration-50 ease-linear"
+          style={{ width: `${toast.progress}%`, background: color }}
+        />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium leading-tight">{toast.title}</p>
-        {toast.description && (
-          <p className="mt-0.5 text-xs text-muted-foreground leading-snug">{toast.description}</p>
-        )}
+
+      <div className="flex items-center gap-3 p-3.5">
+        {/* Icon */}
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+          style={{ background: bg, color }}
+        >
+          {icon}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold leading-tight" style={{ color: theme.colors.foreground }}>
+            {toast.title}
+          </p>
+          {toast.description && (
+            <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{toast.description}</p>
+          )}
+        </div>
+
+        {/* Close */}
+        <button
+          onClick={handleDismiss}
+          className="shrink-0 rounded-full p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <XIcon className="h-3.5 w-3.5" />
+        </button>
       </div>
-      <button
-        onClick={handleDismiss}
-        className="shrink-0 rounded-full p-1 opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
-      >
-        <XIcon className="h-3 w-3 text-muted-foreground" />
-      </button>
     </div>
   );
 };
