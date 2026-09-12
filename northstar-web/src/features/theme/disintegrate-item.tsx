@@ -30,7 +30,7 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
     if (!containerRef.current) return [];
     const rect = containerRef.current.getBoundingClientRect();
     const particles: Particle[] = [];
-    const gridSize = 6;
+    const gridSize = 8;
     const cols = Math.ceil(rect.width / gridSize);
     const rows = Math.ceil(rect.height / gridSize);
 
@@ -39,18 +39,18 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
         const x = col * gridSize + gridSize / 2;
         const y = row * gridSize + gridSize / 2;
         const angle = Math.random() * Math.PI * 2;
-        const speed = 2 + Math.random() * 5;
+        const speed = 3 + Math.random() * 6;
 
         particles.push({
           x,
           y,
           vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 2,
-          size: gridSize * (0.5 + Math.random() * 0.5),
+          vy: Math.sin(angle) * speed - 3,
+          size: gridSize * (0.4 + Math.random() * 0.6),
           color: getRandomColor(),
           life: 1,
           rotation: Math.random() * Math.PI * 2,
-          rotationSpeed: (Math.random() - 0.5) * 0.2,
+          rotationSpeed: (Math.random() - 0.5) * 0.3,
         });
       }
     }
@@ -70,8 +70,8 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
         ...p,
         x: p.x + p.vx,
         y: p.y + p.vy,
-        vy: p.vy + 0.1,
-        life: p.life - 0.008,
+        vy: p.vy + 0.2,
+        life: p.life - 0.025,
         rotation: p.rotation + p.rotationSpeed,
       }))
       .filter((p) => p.life > 0);
@@ -116,7 +116,7 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
       <div
         style={{
           opacity: visible ? 1 : 0,
-          transition: "opacity 0.1s ease-out",
+          transition: "opacity 0.15s ease-out",
           pointerEvents: visible ? "auto" : "none",
         }}
       >

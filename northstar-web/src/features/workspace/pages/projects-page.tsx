@@ -14,6 +14,7 @@ import { ProjectRowActions } from "../components/project-row-actions";
 import { EditProjectDialog } from "../components/edit-project-dialog";
 import { DisintegrateItem } from "@/features/theme/disintegrate-item";
 import { useDeleteProject } from "../hooks/use-delete-project";
+import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import { useToast } from "@/features/theme/toast";
 import type { Project } from "../types/workspace";
 
@@ -28,6 +29,7 @@ export const ProjectsPage = () => {
   const [description, setDescription] = useState("");
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [disintegratingProjectId, setDisintegratingProjectId] = useState<number | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const deleteProjectMutation = useDeleteProject();
 
   const { toast } = useToast();
@@ -106,7 +108,7 @@ export const ProjectsPage = () => {
                   <ProjectRowActions
                     project={project}
                     onEdit={setEditingProject}
-                    onDelete={(p) => setDisintegratingProjectId(p.id)}
+                    onDelete={(p) => setDeletingProject(p)}
                   />
                 </div>
               )}
@@ -146,6 +148,19 @@ export const ProjectsPage = () => {
         project={editingProject}
         onClose={() => setEditingProject(null)}
       />
+
+      {deletingProject && (
+        <ConfirmDeleteDialog
+          project={deletingProject}
+          totalTasks={deletingProject.taskCount ?? 0}
+          onOpenChange={(open) => {
+            if (!open) setDeletingProject(null);
+          }}
+          onConfirm={() => {
+            setDisintegratingProjectId(deletingProject.id);
+          }}
+        />
+      )}
     </div>
   );
 };

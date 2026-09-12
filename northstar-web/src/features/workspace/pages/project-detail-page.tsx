@@ -158,29 +158,29 @@ export const ProjectDetailPage = () => {
         }}
       >
         <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1"
-            onClick={() => navigate("/workspace")}
-          >
-            <ChevronLeft />
-            Projects
-          </Button>
-
-          {canDeleteProject && (
+          <div className="flex items-center justify-between">
             <Button
               variant="outline"
               size="sm"
               className="gap-1"
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => navigate("/workspace")}
             >
-              <Settings className="h-4 w-4" />
-              Settings
+              <ChevronLeft />
+              Projects
             </Button>
-          )}
-        </div>
+
+            {canDeleteProject && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </Button>
+            )}
+          </div>
 
         <div>
           <h1 className="text-2xl font-semibold">{project?.name ?? "Board"}</h1>
