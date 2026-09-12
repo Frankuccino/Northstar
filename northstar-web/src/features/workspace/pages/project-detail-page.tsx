@@ -32,6 +32,7 @@ import { useDeleteTask } from "../hooks/use-delete-task";
 import { useDeleteProject } from "../hooks/use-delete-project";
 import { ProjectTeam } from "../components/project-team";
 import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
+import { ConfirmDeleteTaskDialog } from "../components/confirm-delete-task-dialog";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
@@ -72,6 +73,7 @@ export const ProjectDetailPage = () => {
   const [title, setTitle] = useState("");
   const [selected, setSelected] = useState<Task | null>(null);
   const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const updateMutation = useUpdateProject();
   const updateTaskMutation = useUpdateTask();
   const deleteTaskMutation = useDeleteTask();
@@ -286,7 +288,7 @@ export const ProjectDetailPage = () => {
             onOpenChange={(o) => !o && setSelected(null)}
             onDeleteRequest={(task) => {
               setSelected(null);
-              setDisintegratingTaskId(task.id);
+              setDeletingTask(task);
             }}
           />
         )}
@@ -396,6 +398,18 @@ export const ProjectDetailPage = () => {
         </Sheet>
       </div>
       </DisintegrateItem>
+
+      {deletingTask && (
+        <ConfirmDeleteTaskDialog
+          task={deletingTask}
+          onOpenChange={(open) => {
+            if (!open) setDeletingTask(null);
+          }}
+          onConfirm={() => {
+            setDisintegratingTaskId(deletingTask.id);
+          }}
+        />
+      )}
 
       {deletingProject && (
         <ConfirmDeleteDialog
