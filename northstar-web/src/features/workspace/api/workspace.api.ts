@@ -208,6 +208,11 @@ export const deleteProject = async (projectId: number): Promise<{ id: number }> 
   return res.data;
 };
 
+export const getProjectMembers = async (projectId: number): Promise<any[]> => {
+  const res = await api.get(`/workspace/projects/${projectId}/members`);
+  return res.data;
+};
+
 // ---- Invitations ----------------------------------------------------------
 export const createInvitation = async (
   projectId: number,

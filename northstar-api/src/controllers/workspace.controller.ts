@@ -18,6 +18,7 @@ import {
   assignTask,
   getAssignableUsers,
 } from "../services/workspace.service.js";
+import { getProjectMembersWithStats } from "../services/project-member.service.js";
 import {
   createInvitation,
   getProjectInvitations,
@@ -78,6 +79,20 @@ export const updateProjectHandler = async (
   try {
     const updated = await updateProject(Number(req.params.id), req.body);
     res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getProjectMembersHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const projectId = Number(req.params.id);
+    const members = await getProjectMembersWithStats(projectId);
+    res.json(members);
   } catch (err) {
     next(err);
   }

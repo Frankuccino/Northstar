@@ -30,6 +30,7 @@ import { useUpdateProject } from "../hooks/use-update-project";
 import { useUpdateTask } from "../hooks/use-update-task";
 import { useDeleteTask } from "../hooks/use-delete-task";
 import { useDeleteProject } from "../hooks/use-delete-project";
+import { ProjectTeam } from "../components/project-team";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
 
@@ -378,6 +379,10 @@ export const ProjectDetailPage = () => {
                     <Trash2 className="h-4 w-4" />
                     Delete project
                   </Button>
+                </div>
+
+                <div className="border-t pt-4">
+                  <ProjectTeam project={project} />
                 </div>
               </div>
             )}

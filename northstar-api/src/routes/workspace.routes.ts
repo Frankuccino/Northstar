@@ -37,6 +37,8 @@ import {
   listProjectInvitationsHandler,
   acceptInvitationHandler,
   revokeInvitationHandler,
+  getProjectMembersHandler,
+  getProjectInvitationsHandler,
 } from "../controllers/workspace.controller.js";
 
 const router = Router();
@@ -154,5 +156,8 @@ router.post(
   authenticate,
   acceptInvitationHandler,
 );
+
+// Project members with stats (for team view)
+router.get("/projects/:id/members", getProjectMembersHandler);
 
 export default router;
