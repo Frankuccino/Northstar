@@ -23,6 +23,7 @@ const toProject = (r: any): Project => ({
   description: r.description ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
+  taskCount: r.taskCount,
 });
 
 const toTask = (r: any): Task => ({
