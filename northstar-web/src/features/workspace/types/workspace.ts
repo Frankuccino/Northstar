@@ -68,6 +68,7 @@ export interface Project {
   description: string | null;
   createdAt: string;
   updatedAt: string;
+  taskCount?: number;
 }
 
 export interface Task {

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Plus } from "lucide-react";
+import { Plus, LayoutGrid } from "lucide-react";
 import { useProjects } from "../hooks/use-projects";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
 import { createProject } from "../api/workspace.api";
@@ -79,7 +79,7 @@ export const ProjectsPage = () => {
         </Button>
       </Card>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {(data ?? []).map((project) => (
           <DisintegrateItem
             key={project.id}
@@ -93,9 +93,9 @@ export const ProjectsPage = () => {
               });
             }}
           >
-            <Card className="group relative p-4 hover:border-primary/60">
+            <Card className="group relative flex h-full min-h-[120px] flex-col p-4 hover:border-primary/60">
               {isAdmin && (
-                <div className="absolute right-2 top-2">
+                <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100">
                   <ProjectRowActions
                     project={project}
                     onEdit={setEditingProject}
@@ -104,7 +104,7 @@ export const ProjectsPage = () => {
                 </div>
               )}
               <div
-                className="cursor-pointer pr-8"
+                className="flex flex-1 cursor-pointer flex-col pr-8"
                 onClick={() => navigate(`/workspace/${project.id}`)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") navigate(`/workspace/${project.id}`);
@@ -112,12 +112,22 @@ export const ProjectsPage = () => {
                 role="button"
                 tabIndex={0}
               >
-                <h3 className="font-medium">{project.name}</h3>
-                {project.description && (
-                  <p className="mt-1 text-sm text-muted-foreground">
+                <h3 className="font-medium line-clamp-1">{project.name}</h3>
+                {project.description ? (
+                  <p className="mt-1 flex-1 text-sm text-muted-foreground line-clamp-3">
                     {project.description}
                   </p>
+                ) : (
+                  <p className="mt-1 flex-1 text-sm italic text-muted-foreground/60">
+                    No description
+                  </p>
                 )}
+              </div>
+              <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <LayoutGrid className="h-3 w-3" />
+                  <span>{project.taskCount ?? 0} tasks</span>
+                </div>
               </div>
             </Card>
           </DisintegrateItem>

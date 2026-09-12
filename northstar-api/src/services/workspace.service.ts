@@ -24,7 +24,22 @@ export const createProject = async (name: string, description?: string) => {
   return project;
 };
 
-export const getProjects = async () => db.select().from(projects);
+export const getProjects = async () => {
+  const projectList = await db.select().from(projects);
+  
+  // Get task counts for each project
+  const projectsWithCounts = await Promise.all(
+    projectList.map(async (project) => {
+      const [result] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(tasks)
+        .where(eq(tasks.projectId, project.id));
+      return { ...project, taskCount: result?.count ?? 0 };
+    }),
+  );
+  
+  return projectsWithCounts;
+};
 
 export const getProject = async (id: number) => {
   const [project] = await db.select().from(projects).where(eq(projects.id, id));
