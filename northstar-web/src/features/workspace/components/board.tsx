@@ -67,7 +67,7 @@ const BoardColumn = ({
   });
 
   return (
-    <div className="flex w-64 shrink-0 flex-col gap-2">
+    <div className="flex w-56 shrink-0 flex-col gap-2 sm:w-64">
       <div className="flex items-center justify-between px-1">
         <h3 className="text-sm font-semibold">{COLUMN_LABELS[status]}</h3>
         <span
@@ -244,7 +244,7 @@ export const Board = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-3 overflow-x-auto pb-4 sm:gap-4">
         {BOARD_COLUMNS.map((status) => (
           <BoardColumn
             key={status}
