@@ -34,6 +34,7 @@ import { ProjectTeam } from "../components/project-team";
 import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import { ConfirmDeleteTaskDialog } from "../components/confirm-delete-task-dialog";
 import { AiChatPanel } from "../components/ai-chat-panel";
+import { InvitationsManager } from "../components/invitations-manager";
 import { useToast } from "@/features/theme/toast";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
@@ -411,6 +412,10 @@ export const ProjectDetailPage = () => {
 
                 <div className="border-t pt-4">
                   <ProjectTeam project={project} />
+                </div>
+
+                <div className="border-t pt-4">
+                  <InvitationsManager projectId={id} />
                 </div>
               </div>
             )}
