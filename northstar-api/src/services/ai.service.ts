@@ -70,12 +70,13 @@ export async function isUserProjectMember(
 export async function executeAiIntent(params: {
   clientId: number;
   actorUserId?: number;
+  actorRole?: string;
   projectId: number;
   intent: string;
   payload: Record<string, unknown>;
   ip?: string;
 }) {
-  const { clientId, actorUserId, projectId, intent, payload, ip } = params;
+  const { clientId, actorUserId, actorRole, projectId, intent, payload, ip } = params;
 
   const [client] = await db
     .select()
@@ -109,17 +110,20 @@ export async function executeAiIntent(params: {
   }
 
   if (actorUserId) {
-    const member = await isUserProjectMember(actorUserId, projectId);
-    if (!member) {
-      await db.insert(aiActions).values({
-        clientId,
-        actorUserId,
-        projectId,
-        intent,
-        result: "error: actor not a project member",
-        ip,
-      });
-      throw new Error("Actor is not a project member");
+    // Admins and managers can act on any project
+    if (actorRole !== "admin" && actorRole !== "manager") {
+      const member = await isUserProjectMember(actorUserId, projectId);
+      if (!member) {
+        await db.insert(aiActions).values({
+          clientId,
+          actorUserId,
+          projectId,
+          intent,
+          result: "error: actor not a project member",
+          ip,
+        });
+        throw new Error("Actor is not a project member");
+      }
     }
   }
 

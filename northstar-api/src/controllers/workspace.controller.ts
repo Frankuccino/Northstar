@@ -388,9 +388,11 @@ export const executeAiIntentHandler = async (
 
     const { intent, payload } = executeAiIntentSchema.parse(req.body);
     const actorUserId = (req as any).user?.id;
+    const actorRole = (req as any).user?.role;
     const result = await executeAiIntent({
       clientId: client.id,
       actorUserId,
+      actorRole,
       projectId: Number(req.params.id),
       intent,
       payload: payload ?? {},
