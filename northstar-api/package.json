@@ -30,6 +30,7 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
     "postgres": "^3.4.9",
+    "resend": "^6.28.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

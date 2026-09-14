@@ -5,10 +5,11 @@ import {
   invitations,
   projectMembers,
   users,
+  projects,
   type InvitationStatus,
 } from "../db/schema.js";
 import type { Actor } from "./workspace/access.js";
-
+import { sendInvitationEmail } from "./email.service.js";
 const TOKEN_BYTES = 16;
 const TTL_DAYS = 7;
 
@@ -65,6 +66,18 @@ export const createInvitation = async (
         })
         .where(eq(invitations.id, existing.id))
         .returning();
+
+      // Send email asynchronously
+      const [inviter] = await db.select().from(users).where(eq(users.id, actor.id));
+      const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+
+      sendInvitationEmail({
+        to: normalized,
+        inviterName: inviter?.name ?? "Someone",
+        projectName: project?.name ?? "Project",
+        rawToken: raw,
+      }).catch(console.error);
+
       return { ...updated, rawToken: raw };
     }
     // If accepted/revoked/expired, allow new invitation by deleting old
@@ -82,6 +95,17 @@ export const createInvitation = async (
       expiresAt,
     })
     .returning();
+
+  // Send email asynchronously (don't block the response)
+  const [inviter] = await db.select().from(users).where(eq(users.id, actor.id));
+  const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+
+  sendInvitationEmail({
+    to: normalized,
+    inviterName: inviter?.name ?? "Someone",
+    projectName: project?.name ?? "Project",
+    rawToken: raw,
+  }).catch(console.error);
 
   return { ...invitation, rawToken: raw };
 };
