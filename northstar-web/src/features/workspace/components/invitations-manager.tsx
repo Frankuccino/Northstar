@@ -28,7 +28,8 @@ export const InvitationsManager = ({ projectId }: InvitationsManagerProps) => {
       toast({ type: "success", title: "Invitation sent" });
     },
     onError: (err: any) => {
-      toast({ type: "error", title: "Failed to send invitation", description: err?.response?.data?.error });
+      const message = err?.response?.data?.error ?? "Failed to send invitation";
+      toast({ type: "error", title: "Failed to send invitation", description: message });
     },
   });
 
