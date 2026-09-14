@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Settings, Trash2 } from "lucide-react";
+import { ChevronLeft, Settings, Trash2, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,7 @@ import { useDeleteProject } from "../hooks/use-delete-project";
 import { ProjectTeam } from "../components/project-team";
 import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import { ConfirmDeleteTaskDialog } from "../components/confirm-delete-task-dialog";
+import { AiChatPanel } from "../components/ai-chat-panel";
 import { useToast } from "@/features/theme/toast";
 import type { Task, SuggestionType, TaskStatus } from "../types/workspace";
 import { wipLimitFor, BOARD_COLUMNS, COLUMN_LABELS } from "../types/workspace";
@@ -75,6 +76,7 @@ export const ProjectDetailPage = () => {
   const [selected, setSelected] = useState<Task | null>(null);
   const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
   const { toast } = useToast();
   const updateMutation = useUpdateProject();
   const updateTaskMutation = useUpdateTask();
@@ -169,17 +171,29 @@ export const ProjectDetailPage = () => {
               Projects
             </Button>
 
-            {canDeleteProject && (
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1"
-                onClick={() => setSettingsOpen(true)}
+                onClick={() => setAiChatOpen(true)}
               >
-                <Settings className="h-4 w-4" />
-                Settings
+                <Bot className="h-4 w-4" />
+                AI Chat
               </Button>
-            )}
+
+              {canDeleteProject && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Button>
+              )}
+            </div>
           </div>
 
         <div>
@@ -440,6 +454,14 @@ export const ProjectDetailPage = () => {
           }}
         />
       )}
+
+      <AiChatPanel
+        open={aiChatOpen}
+        onOpenChange={setAiChatOpen}
+        onTasksChanged={() => {
+          queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(id, filters) });
+        }}
+      />
     </>
   );
 };
