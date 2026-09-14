@@ -4,7 +4,7 @@ import { projectMembers, users, tasks, invitations } from "../db/schema.js";
 
 export interface ProjectMemberWithStats {
   userId: number;
-  name: string;
+  name: string | null;
   email: string;
   role: string;
   joinedAt: Date;

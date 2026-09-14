@@ -38,7 +38,6 @@ import {
   acceptInvitationHandler,
   revokeInvitationHandler,
   getProjectMembersHandler,
-  getProjectInvitationsHandler,
   executeAiIntentHandler,
   listAiActionsHandler,
   registerAiClientHandler,
