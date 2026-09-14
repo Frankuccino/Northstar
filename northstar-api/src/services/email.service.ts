@@ -3,7 +3,7 @@ import { Resend } from "resend";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM_EMAIL = process.env.FROM_EMAIL ?? "Northstar <noreply@onmail.resend.dev>";
-const APP_URL = process.env.APP_URL ?? "http://localhost:5173";
+const APP_URL = process.env.APP_URL ?? process.env.CLIENT_URL ?? "http://localhost:5173";
 
 export const sendInvitationEmail = async (params: {
   to: string;
