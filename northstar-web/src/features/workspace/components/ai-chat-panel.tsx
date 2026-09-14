@@ -1,9 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Send, Bot, User, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { executeAiIntent, type AiMessage } from "../api/ai.api";
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+type DockPosition = "right" | "left" | "bottom" | "top" | "floating";
 
 interface AiChatPanelProps {
   open: boolean;
@@ -17,16 +24,58 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [dockPosition, setDockPosition] = useState<DockPosition>("right");
+  const [floatingPos, setFloatingPos] = useState<Position>({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
+  const dragStartPos = useRef<Position>({ x: 0, y: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Drag handling
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (dockPosition !== "floating") return;
+    setIsDragging(true);
+    dragStartPos.current = {
+      x: e.clientX - floatingPos.x,
+      y: e.clientY - floatingPos.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setFloatingPos({
+        x: e.clientX - dragStartPos.current.x,
+        y: e.clientY - dragStartPos.current.y,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
+  // Dock to edge detection
+  const handleDockToggle = (position: DockPosition) => {
+    setDockPosition(position);
+  };
+
   const parseIntent = (text: string): { intent: string; payload: Record<string, unknown> } | null => {
     const lower = text.toLowerCase().trim();
 
-    // Create task
     if (lower.includes("create") || lower.includes("add") || lower.includes("new")) {
       const titleMatch = text.match(/(?:called|named|titled|task)\s+["']?([^"']+?)["']?(?:\s+(?:in|to)|$)/i) ||
                          text.match(/(?:create|add|new)\s+(?:a\s+)?(?:task\s+)?["']?([^"']+?)["']?(?:\s+(?:in|to)|$)/i);
@@ -43,7 +92,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
       }
     }
 
-    // Move task
     if (lower.includes("move") || lower.includes("set") || lower.includes("change")) {
       const taskMatch = text.match(/(?:task|card)\s+["']?([^"']+?)["']?\s+(?:to|into|in)\s+(\w+)/i) ||
                         text.match(/move\s+["']?([^"']+?)["']?\s+to\s+(\w+)/i);
@@ -60,7 +108,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
       }
     }
 
-    // Assign task
     if (lower.includes("assign")) {
       const assignMatch = text.match(/assign\s+["']?([^"']+?)["']?\s+to\s+(\w+)/i);
       if (assignMatch) {
@@ -147,11 +194,48 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
 
   if (!open) return null;
 
+  const getDockStyles = () => {
+    switch (dockPosition) {
+      case "right":
+        return "inset-y-0 right-0 w-full sm:w-96 border-l";
+      case "left":
+        return "inset-y-0 left-0 w-full sm:w-96 border-r";
+      case "bottom":
+        return "inset-x-0 bottom-0 h-[400px] border-t";
+      case "top":
+        return "inset-x-0 top-0 h-[400px] border-b";
+      case "floating":
+        return "absolute h-[450px] w-[380px] shadow-2xl ring-1 ring-border/50 rounded-xl overflow-hidden";
+      default:
+        return "";
+    }
+  };
+
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l bg-background shadow-xl sm:w-96">
+    <div
+      ref={dragRef}
+      className={`z-50 flex flex-col bg-background ${getDockStyles()} ${
+        dockPosition === "floating" ? "" : "fixed"
+      } ${isDragging ? "cursor-grabbing select-none" : ""}`}
+      style={
+        dockPosition === "floating"
+          ? {
+              left: floatingPos.x,
+              top: floatingPos.y,
+            }
+          : undefined
+      }
+    >
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
+      <div
+        className="flex items-center justify-between border-b px-4 py-3 bg-muted/30"
+        onMouseDown={handleMouseDown}
+        style={{ cursor: dockPosition === "floating" ? "grab" : "default" }}
+      >
         <div className="flex items-center gap-2">
+          {dockPosition === "floating" && (
+            <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+          )}
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
             <Bot className="h-4 w-4 text-primary" />
           </div>
@@ -160,9 +244,61 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
             <p className="text-xs text-muted-foreground">Manage tasks with natural language</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
-          <XCircle className="h-4 w-4" />
-        </Button>
+
+        <div className="flex items-center gap-1">
+          {/* Dock controls */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleDockToggle("left")}
+            title="Dock left"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleDockToggle("right")}
+            title="Dock right"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleDockToggle("bottom")}
+            title="Dock bottom"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="3" y1="15" x2="21" y2="15" />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleDockToggle("floating")}
+            title="Float"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenChange(false)}>
+            <XCircle className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Messages */}

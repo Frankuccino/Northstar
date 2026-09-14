@@ -30,6 +30,7 @@ import {
   executeAiIntent,
   listAiActions,
 } from "../services/ai.service.js";
+import { registerAiClient } from "../services/ai-client.service.js";
 import { listTasksQuerySchema, listInvitationsQuerySchema } from "../schemas/workspace.schema.js";
 import { executeAiIntentSchema, listAiActionsQuerySchema } from "../schemas/workspace.schema.js";
 
@@ -415,6 +416,23 @@ export const listAiActionsHandler = async (
       projectId: query.projectId,
     });
     res.json(actions);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const registerAiClientHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { name, scope } = req.body;
+    const client = await registerAiClient({
+      name: name ?? "Northstar Web",
+      scope: scope ?? "write",
+    });
+    res.status(201).json(client);
   } catch (err) {
     next(err);
   }

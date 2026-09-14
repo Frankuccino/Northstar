@@ -1,5 +1,7 @@
 import { api } from "@/lib/axios";
 
+const AI_KEY_STORAGE = "northstar-ai-key";
+
 export interface AiMessage {
   id: string;
   role: "user" | "assistant";
@@ -21,20 +23,34 @@ export interface AiIntentResponse {
   taskId?: number;
 }
 
+const getStoredKey = (): string | null => {
+  return localStorage.getItem(AI_KEY_STORAGE);
+};
+
+const registerClient = async (projectId: number): Promise<string> => {
+  const res = await api.post(`/workspace/projects/${projectId}/ai/clients`, {
+    name: "Northstar Web",
+    scope: "write",
+  });
+  return res.data.apiKey;
+};
+
+const ensureAiKey = async (projectId: number): Promise<string> => {
+  const existingKey = getStoredKey();
+  if (existingKey) return existingKey;
+
+  const newKey = await registerClient(projectId);
+  localStorage.setItem(AI_KEY_STORAGE, newKey);
+  return newKey;
+};
+
 export const executeAiIntent = async (
   projectId: number,
   request: AiIntentRequest,
 ): Promise<AiIntentResponse> => {
-  const res = await api.post(`/workspace/projects/${projectId}/ai/intent`, request);
-  return res.data;
-};
-
-export const getAiActions = async (projectId: number): Promise<any[]> => {
-  const res = await api.get(`/workspace/projects/${projectId}/ai/actions`);
-  return res.data;
-};
-
-export const listAiTools = async (projectId: number): Promise<any[]> => {
-  const res = await api.get(`/workspace/projects/${projectId}/ai/actions/tools`);
+  const apiKey = await ensureAiKey(projectId);
+  const res = await api.post(`/workspace/projects/${projectId}/ai/intent`, request, {
+    headers: { "x-ai-api-key": apiKey },
+  });
   return res.data;
 };

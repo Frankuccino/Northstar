@@ -41,6 +41,7 @@ import {
   getProjectInvitationsHandler,
   executeAiIntentHandler,
   listAiActionsHandler,
+  registerAiClientHandler,
 } from "../controllers/workspace.controller.js";
 
 const router = Router();
@@ -162,7 +163,7 @@ router.post(
 // AI
 router.post("/projects/:id/ai/intent", executeAiIntentHandler);
 router.get("/projects/:id/ai/actions", listAiActionsHandler);
-router.get("/projects/:id/ai/actions/tools", listAiActionsHandler);
+router.post("/projects/:id/ai/clients", registerAiClientHandler);
 
 // Project members with stats (for team view)
 router.get("/projects/:id/members", getProjectMembersHandler);
