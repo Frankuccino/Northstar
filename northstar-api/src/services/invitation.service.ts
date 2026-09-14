@@ -41,6 +41,36 @@ export const createInvitation = async (
     Date.now() + TTL_DAYS * 24 * 60 * 60 * 1000,
   );
 
+  // Check for existing invitation
+  const [existing] = await db
+    .select()
+    .from(invitations)
+    .where(
+      and(
+        eq(invitations.email, normalized),
+        eq(invitations.projectId, projectId),
+      ),
+    )
+    .limit(1);
+
+  if (existing) {
+    if (existing.status === "pending") {
+      // Update existing pending invitation with new token and expiry
+      const [updated] = await db
+        .update(invitations)
+        .set({
+          tokenHash: hash,
+          expiresAt,
+          invitedById: actor.id,
+        })
+        .where(eq(invitations.id, existing.id))
+        .returning();
+      return { ...updated, rawToken: raw };
+    }
+    // If accepted/revoked/expired, allow new invitation by deleting old
+    await db.delete(invitations).where(eq(invitations.id, existing.id));
+  }
+
   const [invitation] = await db
     .insert(invitations)
     .values({

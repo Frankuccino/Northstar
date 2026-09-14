@@ -43,10 +43,9 @@ export const invitations = pgTable(
   (table) => [
     index("invitations_token_idx").on(table.tokenHash),
     index("invitations_expires_at_idx").on(table.expiresAt),
-    index("invitations_email_project_idx").on(
-      table.email,
-      table.projectId,
-    ),
+    // One invitation per email+project (allows re-invite after accept/revoke)
+    uniqueIndex("invitations_email_project_uniq")
+      .on(table.email, table.projectId),
   ],
 );
 
