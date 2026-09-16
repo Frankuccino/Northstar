@@ -35,7 +35,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Drag handling
   const handleMouseDown = (e: React.MouseEvent) => {
     if (dockPosition !== "floating") return;
     setIsDragging(true);
@@ -169,7 +168,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     const userInput = input.trim();
     setInput("");
 
-    // Add user message
     const userMessage: AiMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -178,7 +176,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     };
     setMessages((prev) => [...prev, userMessage]);
 
-    // Check for commands first
     if (userInput.startsWith("/")) {
       if (handleCommand(userInput)) return;
     }
@@ -254,7 +251,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
           : undefined
       }
     >
-      {/* Header */}
       <div
         className="flex items-center justify-between border-b px-4 py-3 bg-muted/30"
         onMouseDown={handleMouseDown}
@@ -283,7 +279,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
           >
             <Trash2 className="h-3 w-3" />
           </Button>
-          {/* Dock controls */}
           <Button
             variant="ghost"
             size="icon"
@@ -338,7 +333,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center text-center">
@@ -370,7 +364,11 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
                   : "bg-muted text-foreground"
               }`}
             >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.role === "assistant" ? (
+                <MarkdownText content={msg.content} />
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
               {msg.action && (
                 <div className="mt-1 flex items-center gap-1 text-xs opacity-70">
                   {msg.action.result === "success" ? (
@@ -405,7 +403,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div className="border-t p-4">
         <div className="flex gap-2">
           <Input
@@ -423,3 +420,35 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     </div>
   );
 };
+
+function MarkdownText({ content }: { content: string }) {
+  const lines = content.split("\n");
+
+  return (
+    <div className="space-y-1.5">
+      {lines.map((line, i) => {
+        const parts = line.split(/(\*\*[^*]+\*\*)/g);
+        const rendered = parts.map((part, j) => {
+          if (part.startsWith("**") && part.endsWith("**")) {
+            return <strong key={j}>{part.slice(2, -2)}</strong>;
+          }
+          return <span key={j}>{part}</span>;
+        });
+
+        if (line.match(/^[📋🔄👤⌨️]/)) {
+          return <p key={i} className="font-semibold mt-2 first:mt-0">{line}</p>;
+        }
+
+        if (line.trim() === "") {
+          return <br key={i} />;
+        }
+
+        if (line.startsWith('"') || line.startsWith("-")) {
+          return <p key={i} className="text-muted-foreground pl-2">{line}</p>;
+        }
+
+        return <p key={i}>{rendered}</p>;
+      })}
+    </div>
+  );
+}
