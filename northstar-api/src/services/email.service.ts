@@ -1,9 +1,12 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM_EMAIL = process.env.FROM_EMAIL ?? "Northstar <noreply@onmail.resend.dev>";
 const APP_URL = process.env.APP_URL ?? process.env.CLIENT_URL ?? "http://localhost:5173";
+
+const getResend = () => {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+};
 
 export const sendInvitationEmail = async (params: {
   to: string;
@@ -13,7 +16,8 @@ export const sendInvitationEmail = async (params: {
 }): Promise<{ success: boolean; error?: string }> => {
   const { to, inviterName, projectName, rawToken } = params;
 
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     console.warn("RESEND_API_KEY not set, skipping email send");
     return { success: false, error: "Email service not configured" };
   }
