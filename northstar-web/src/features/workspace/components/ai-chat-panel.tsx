@@ -422,32 +422,35 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
 };
 
 function MarkdownText({ content }: { content: string }) {
+  const renderLine = (line: string): React.ReactNode => {
+    // Bold text: replace **text** with <strong>
+    const parts = line.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, j) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={j}>{part.slice(2, -2)}</strong>;
+      }
+      return <span key={j}>{part}</span>;
+    });
+  };
+
   const lines = content.split("\n");
 
   return (
     <div className="space-y-1.5">
       {lines.map((line, i) => {
-        const parts = line.split(/(\*\*[^*]+\*\*)/g);
-        const rendered = parts.map((part, j) => {
-          if (part.startsWith("**") && part.endsWith("**")) {
-            return <strong key={j}>{part.slice(2, -2)}</strong>;
-          }
-          return <span key={j}>{part}</span>;
-        });
-
-        if (line.match(/^[📋🔄👤⌨️]/)) {
-          return <p key={i} className="font-semibold mt-2 first:mt-0">{line}</p>;
-        }
-
         if (line.trim() === "") {
           return <br key={i} />;
         }
 
-        if (line.startsWith('"') || line.startsWith("-")) {
-          return <p key={i} className="text-muted-foreground pl-2">{line}</p>;
+        if (line.match(/^[📋🔄👤⌨️]/)) {
+          return <p key={i} className="font-semibold mt-2 first:mt-0">{renderLine(line)}</p>;
         }
 
-        return <p key={i}>{rendered}</p>;
+        if (line.startsWith('"') || line.startsWith("-")) {
+          return <p key={i} className="text-muted-foreground pl-2">{renderLine(line)}</p>;
+        }
+
+        return <p key={i}>{renderLine(line)}</p>;
       })}
     </div>
   );
