@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical } from "lucide-react";
+import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { executeAiIntent, type AiMessage } from "../api/ai.api";
@@ -68,9 +68,19 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     };
   }, [isDragging]);
 
-  // Dock to edge detection
   const handleDockToggle = (position: DockPosition) => {
     setDockPosition(position);
+  };
+
+  const addAssistantMessage = (content: string, action?: { type: string; result: string }) => {
+    const msg: AiMessage = {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      content,
+      timestamp: new Date(),
+      action,
+    };
+    setMessages((prev) => [...prev, msg]);
   };
 
   const parseIntent = (text: string): { intent: string; payload: Record<string, unknown> } | null => {
@@ -124,62 +134,83 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     return null;
   };
 
+  const handleCommand = (cmd: string): boolean => {
+    const command = cmd.toLowerCase().trim();
+
+    if (command === "/clear") {
+      setMessages([]);
+      return true;
+    }
+
+    if (command === "/help") {
+      addAssistantMessage(
+        "Here's what I can do:\n\n" +
+        "📋 **Create tasks**\n" +
+        "\"Create a task called 'Fix bug'\"\n" +
+        "\"Add new task 'Update docs' in backlog\"\n\n" +
+        "🔄 **Move tasks**\n" +
+        "\"Move 'Fix bug' to in_progress\"\n" +
+        "\"Set task 'Update docs' to done\"\n\n" +
+        "👤 **Assign tasks**\n" +
+        "\"Assign 'Fix bug' to John\"\n\n" +
+        "⌨️ **Commands**\n" +
+        "/clear - Clear chat history\n" +
+        "/help - Show this help message"
+      );
+      return true;
+    }
+
+    return false;
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
+    const userInput = input.trim();
+    setInput("");
+
+    // Add user message
     const userMessage: AiMessage = {
       id: crypto.randomUUID(),
       role: "user",
-      content: input,
+      content: userInput,
       timestamp: new Date(),
     };
-
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
+
+    // Check for commands first
+    if (userInput.startsWith("/")) {
+      if (handleCommand(userInput)) return;
+    }
+
     setIsLoading(true);
 
-    const parsed = parseIntent(input);
+    const parsed = parseIntent(userInput);
 
     if (!parsed) {
-      const errorMessage: AiMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "I can help you create, move, and assign tasks. Try saying:\n- \"Create a task called 'Fix bug' in backlog\"\n- \"Move task 'Fix bug' to in_progress\"\n- \"Assign task 'Fix bug' to John\"",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      addAssistantMessage(
+        "I didn't understand that. Try:\n" +
+        "\"Create a task called 'Fix bug'\"\n" +
+        "\"Move 'Fix bug' to in_progress\"\n" +
+        "\"Assign 'Fix bug' to John\"\n" +
+        "Or type /help for all commands."
+      );
       setIsLoading(false);
       return;
     }
 
     try {
       const result = await executeAiIntent(id, parsed);
-
-      const assistantMessage: AiMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Done! ${parsed.intent.replace("_", " ")} completed successfully.`,
-        timestamp: new Date(),
-        action: {
-          type: parsed.intent,
-          result: result.ok ? "success" : "failed",
-        },
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
+      addAssistantMessage(
+        `Done! ${parsed.intent.replace("_", " ")} completed successfully.`,
+        { type: parsed.intent, result: result.ok ? "success" : "failed" }
+      );
       onTasksChanged();
     } catch (err: any) {
-      const errorMessage: AiMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: err?.response?.data?.error ?? "Something went wrong. Please try again.",
-        timestamp: new Date(),
-        action: {
-          type: parsed.intent,
-          result: "error",
-        },
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      addAssistantMessage(
+        err?.response?.data?.error ?? "Something went wrong. Please try again.",
+        { type: parsed.intent, result: "error" }
+      );
     } finally {
       setIsLoading(false);
     }
@@ -219,10 +250,7 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
       } ${isDragging ? "cursor-grabbing select-none" : ""}`}
       style={
         dockPosition === "floating"
-          ? {
-              left: floatingPos.x,
-              top: floatingPos.y,
-            }
+          ? { left: floatingPos.x, top: floatingPos.y }
           : undefined
       }
     >
@@ -246,6 +274,15 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
         </div>
 
         <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setMessages([])}
+            title="Clear chat"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
           {/* Dock controls */}
           <Button
             variant="ghost"
@@ -311,6 +348,7 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
               <p>"Create a task called 'Fix bug'"</p>
               <p>"Move 'Fix bug' to in_progress"</p>
               <p>"Assign 'Fix bug' to John"</p>
+              <p className="mt-2 font-medium">Type /help for all commands</p>
             </div>
           </div>
         )}
@@ -374,7 +412,7 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask AI to manage tasks..."
+            placeholder="Ask AI to manage tasks... (type /help for commands)"
             disabled={isLoading}
           />
           <Button onClick={handleSend} disabled={!input.trim() || isLoading} size="icon">
