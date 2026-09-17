@@ -16,7 +16,7 @@ export const AppShell = () => {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden shrink-0 border-r border-border bg-muted/30 transition-[width] duration-200 md:block",
+          "sticky top-0 hidden h-screen shrink-0 border-r border-border bg-muted/30 transition-[width] duration-200 md:block",
           collapsed ? "w-16" : "w-64"
         )}
       >
@@ -35,7 +35,9 @@ export const AppShell = () => {
             )}
           </Button>
         </div>
-        <Sidebar collapsed={collapsed} />
+        <div className="h-[calc(100vh-3rem)] overflow-y-auto">
+          <Sidebar collapsed={collapsed} />
+        </div>
       </aside>
 
       {/* Mobile drawer */}
