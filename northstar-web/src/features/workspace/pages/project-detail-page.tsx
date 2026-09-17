@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Settings, Trash2, Bot } from "lucide-react";
+import { ChevronLeft, Settings, Trash2, Bot, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,7 @@ import {
 import { useProjectTasks } from "../hooks/use-project-tasks";
 import { useTaskSuggestions } from "../hooks/use-task-suggestions";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
-import { createTask, moveTask, getAssignableUsers, getProject } from "../api/workspace.api";
+import { createTask, moveTask, getAssignableUsers, getProject, searchTasks, getLabels, createLabel, deleteLabel } from "../api/workspace.api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { workspaceKeys } from "../api/workspace-query-keys";
 import { Board } from "../components/board";
@@ -78,11 +78,45 @@ export const ProjectDetailPage = () => {
   const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [newLabelName, setNewLabelName] = useState("");
+  const [newLabelColor, setNewLabelColor] = useState("#6366f1");
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (query.trim()) {
+      const results = await searchTasks(id, query);
+      setSearchResults(results);
+    } else {
+      setSearchResults(null);
+    }
+  };
   const { toast } = useToast();
   const updateMutation = useUpdateProject();
   const updateTaskMutation = useUpdateTask();
   const deleteTaskMutation = useDeleteTask();
   const deleteProjectMutation = useDeleteProject();
+
+  // Labels management
+  const { data: projectLabels, refetch: refetchProjectLabels } = useQuery({
+    queryKey: ["project-labels", id],
+    queryFn: () => getLabels(id),
+    enabled: settingsOpen,
+  });
+
+  const createLabelMut = useMutation({
+    mutationFn: () => createLabel(id, { name: newLabelName, color: newLabelColor }),
+    onSuccess: () => {
+      setNewLabelName("");
+      refetchProjectLabels();
+    },
+  });
+
+  const deleteLabelMut = useMutation({
+    mutationFn: (labelId: number) => deleteLabel(labelId),
+    onSuccess: () => refetchProjectLabels(),
+  });
 
   const { data: selectedSuggestions } = useTaskSuggestions(selected?.id ?? 0);
 
@@ -201,6 +235,41 @@ export const ProjectDetailPage = () => {
           <h1 className="text-2xl font-semibold">{project?.name ?? "Board"}</h1>
           {project?.description && (
             <p className="text-sm text-muted-foreground">{project.description}</p>
+          )}
+        </div>
+
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            placeholder="Search tasks..."
+            className="pl-9"
+          />
+          {searchResults && (
+            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-popover shadow-lg">
+              {searchResults.length > 0 ? (
+                searchResults.map((task: any) => (
+                  <div
+                    key={task.id}
+                    className="cursor-pointer p-2 text-sm hover:bg-muted"
+                    onClick={() => {
+                      setSelected(task as any);
+                      setSearchQuery("");
+                      setSearchResults(null);
+                    }}
+                  >
+                    <p className="font-medium">{task.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {COLUMN_LABELS[task.status as TaskStatus]}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="p-2 text-sm text-muted-foreground">No tasks found</p>
+              )}
+            </div>
           )}
         </div>
 
@@ -408,6 +477,48 @@ export const ProjectDetailPage = () => {
                     <Trash2 className="h-4 w-4" />
                     Delete project
                   </Button>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h3 className="text-sm font-medium">Labels</h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {projectLabels?.map((label: any) => (
+                      <span
+                        key={label.id}
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                        style={{ backgroundColor: label.color }}
+                      >
+                        {label.name}
+                        <button
+                          onClick={() => deleteLabelMut.mutate(label.id)}
+                          className="opacity-70 hover:opacity-100"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Input
+                      value={newLabelName}
+                      onChange={(e) => setNewLabelName(e.target.value)}
+                      placeholder="Label name"
+                      className="flex-1"
+                    />
+                    <Input
+                      type="color"
+                      value={newLabelColor}
+                      onChange={(e) => setNewLabelColor(e.target.value)}
+                      className="w-12 p-1"
+                    />
+                    <Button
+                      size="sm"
+                      disabled={!newLabelName.trim() || createLabelMut.isPending}
+                      onClick={() => createLabelMut.mutate()}
+                    >
+                      Add
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="border-t pt-4">

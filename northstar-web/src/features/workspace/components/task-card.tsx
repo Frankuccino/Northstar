@@ -23,6 +23,20 @@ const initials = (name: string): string => {
   return name.slice(0, 2).toUpperCase();
 };
 
+const PRIORITY_COLORS: Record<string, string> = {
+  low: "bg-blue-100 text-blue-700 border-blue-300",
+  medium: "bg-gray-100 text-gray-700 border-gray-300",
+  high: "bg-orange-100 text-orange-700 border-orange-300",
+  urgent: "bg-red-100 text-red-700 border-red-300",
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  low: "Low",
+  medium: "Med",
+  high: "High",
+  urgent: "Urgent",
+};
+
 interface TaskCardProps {
   task: Task;
   suggestionTypes: SuggestionType[];
@@ -51,6 +65,8 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
       setIsEditing(false);
     }
   };
+
+  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
 
   return (
     <Card
@@ -83,14 +99,36 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
         <p className="text-sm font-medium leading-snug">{task.title}</p>
       )}
 
-      <p className="mt-1 text-xs text-muted-foreground">
-        {COLUMN_LABELS[task.status]}
-      </p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <span
+          className={cn(
+            "rounded-full border px-1.5 py-0.5 text-[10px] font-medium capitalize",
+            PRIORITY_COLORS[task.priority] ?? PRIORITY_COLORS.medium
+          )}
+        >
+          {PRIORITY_LABELS[task.priority] ?? "Med"}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {COLUMN_LABELS[task.status]}
+        </span>
+      </div>
 
       {task.assigneeName && (
         <p className="mt-1 text-xs font-medium text-foreground/70">
           {initials(task.assigneeName)}
           <span className="ml-1 text-muted-foreground">{task.assigneeName}</span>
+        </p>
+      )}
+
+      {task.dueDate && (
+        <p
+          className={cn(
+            "mt-1 text-xs",
+            isOverdue ? "font-medium text-red-500" : "text-muted-foreground"
+          )}
+        >
+          {isOverdue ? "⚠️ Overdue: " : "📅 "}
+          {new Date(task.dueDate).toLocaleDateString()}
         </p>
       )}
 
