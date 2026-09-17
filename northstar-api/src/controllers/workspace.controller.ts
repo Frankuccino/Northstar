@@ -17,6 +17,18 @@ import {
   updateTask,
   assignTask,
   getAssignableUsers,
+  getLabels,
+  createLabel,
+  deleteLabel,
+  addLabelToTask,
+  removeLabelFromTask,
+  getTaskLabels,
+  getTaskComments,
+  createTaskComment,
+  deleteTaskComment,
+  updateTaskPriority,
+  updateTaskDueDate,
+  searchTasks,
 } from "../services/workspace.service.js";
 import { getProjectMembersWithStats } from "../services/project-member.service.js";
 import {
@@ -435,6 +447,137 @@ export const registerAiClientHandler = async (
       scope: scope ?? "write",
     });
     res.status(201).json(client);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ---- Labels ----------------------------------------------------------------
+export const getLabelsHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = Number(req.params.id);
+    const labels = await getLabels(projectId);
+    res.json(labels);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createLabelHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = Number(req.params.id);
+    const label = await createLabel(projectId, req.body);
+    res.status(201).json(label);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteLabelHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const labelId = Number(req.params.labelId);
+    await deleteLabel(labelId);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const addLabelToTaskHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = Number(req.params.taskId);
+    const labelId = Number(req.params.labelId);
+    await addLabelToTask(taskId, labelId);
+    res.status(201).json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const removeLabelFromTaskHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = Number(req.params.taskId);
+    const labelId = Number(req.params.labelId);
+    await removeLabelFromTask(taskId, labelId);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getTaskLabelsHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = Number(req.params.taskId);
+    const labels = await getTaskLabels(taskId);
+    res.json(labels);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ---- Task Comments ---------------------------------------------------------
+export const getTaskCommentsHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = Number(req.params.taskId);
+    const comments = await getTaskComments(taskId);
+    res.json(comments);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createTaskCommentHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = Number(req.params.taskId);
+    const actorId = req.user!.id;
+    const { content } = req.body;
+    const comment = await createTaskComment(taskId, actorId, content);
+    res.status(201).json(comment);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteTaskCommentHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const commentId = Number(req.params.commentId);
+    await deleteTaskComment(commentId);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ---- Task Priority & Due Date ---------------------------------------------
+export const updateTaskPriorityHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = Number(req.params.id);
+    const { priority } = req.body;
+    const updated = await updateTaskPriority(taskId, priority);
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateTaskDueDateHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const taskId = Number(req.params.id);
+    const { dueDate } = req.body;
+    const updated = await updateTaskDueDate(taskId, dueDate ? new Date(dueDate) : null);
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ---- Search ----------------------------------------------------------------
+export const searchTasksHandler = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const projectId = Number(req.params.id);
+    const query = String(req.query.q ?? "");
+    const tasks = await searchTasks(projectId, query);
+    res.json(tasks);
   } catch (err) {
     next(err);
   }

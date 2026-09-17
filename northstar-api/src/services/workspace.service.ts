@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { db } from "../db/index.js";
 import {
   projects,
@@ -7,7 +7,11 @@ import {
   aiSuggestions,
   taskValidations,
   commitRecords,
+  labels,
+  taskLabels,
+  taskComments,
   type SuggestionType,
+  type TaskPriority,
 } from "../db/schema.js";
 import { projectMembers } from "../db/schema.js";
 import type { TaskStatus } from "../types/task-status.js";
@@ -370,4 +374,111 @@ export const getAssignableUsers = async (projectId?: number) => {
   }
 
   return db.select({ id: users.id, name: users.name }).from(users);
+};
+
+// ---- Task Priority & Due Date ---------------------------------------------
+export const updateTaskPriority = async (taskId: number, priority: TaskPriority) => {
+  const [updated] = await db
+    .update(tasks)
+    .set({ priority, updatedAt: new Date() })
+    .where(eq(tasks.id, taskId))
+    .returning();
+  return updated;
+};
+
+export const updateTaskDueDate = async (taskId: number, dueDate: Date | null) => {
+  const [updated] = await db
+    .update(tasks)
+    .set({ dueDate, updatedAt: new Date() })
+    .where(eq(tasks.id, taskId))
+    .returning();
+  return updated;
+};
+
+// ---- Labels ----------------------------------------------------------------
+export const getLabels = async (projectId: number) => {
+  return db.select().from(labels).where(eq(labels.projectId, projectId));
+};
+
+export const createLabel = async (projectId: number, data: { name: string; color: string }) => {
+  const [label] = await db
+    .insert(labels)
+    .values({ projectId, ...data })
+    .returning();
+  return label;
+};
+
+export const deleteLabel = async (labelId: number) => {
+  await db.delete(labels).where(eq(labels.id, labelId));
+};
+
+export const addLabelToTask = async (taskId: number, labelId: number) => {
+  const [result] = await db
+    .insert(taskLabels)
+    .values({ taskId, labelId })
+    .onConflictDoNothing()
+    .returning();
+  return result;
+};
+
+export const removeLabelFromTask = async (taskId: number, labelId: number) => {
+  await db
+    .delete(taskLabels)
+    .where(and(eq(taskLabels.taskId, taskId), eq(taskLabels.labelId, labelId)));
+};
+
+export const getTaskLabels = async (taskId: number) => {
+  const taskLabelsList = await db
+    .select({ labelId: taskLabels.labelId })
+    .from(taskLabels)
+    .where(eq(taskLabels.taskId, taskId));
+
+  if (taskLabelsList.length === 0) return [];
+
+  const labelIds = taskLabelsList.map((tl) => tl.labelId);
+  return db.select().from(labels).where(inArray(labels.id, labelIds));
+};
+
+// ---- Task Comments ---------------------------------------------------------
+export const getTaskComments = async (taskId: number) => {
+  return db
+    .select({
+      id: taskComments.id,
+      content: taskComments.content,
+      authorId: taskComments.authorId,
+      authorName: users.name,
+      createdAt: taskComments.createdAt,
+      updatedAt: taskComments.updatedAt,
+    })
+    .from(taskComments)
+    .leftJoin(users, eq(taskComments.authorId, users.id))
+    .where(eq(taskComments.taskId, taskId))
+    .orderBy(desc(taskComments.createdAt));
+};
+
+export const createTaskComment = async (taskId: number, authorId: number, content: string) => {
+  const [comment] = await db
+    .insert(taskComments)
+    .values({ taskId, authorId, content })
+    .returning();
+  return comment;
+};
+
+export const deleteTaskComment = async (commentId: number) => {
+  await db.delete(taskComments).where(eq(taskComments.id, commentId));
+};
+
+// ---- Search ----------------------------------------------------------------
+export const searchTasks = async (projectId: number, query: string) => {
+  const searchPattern = `%${query.toLowerCase()}%`;
+  return db
+    .select()
+    .from(tasks)
+    .where(
+      and(
+        eq(tasks.projectId, projectId),
+        sql`lower(${tasks.title}) LIKE ${searchPattern} OR lower(${tasks.description}) LIKE ${searchPattern}`
+      )
+    )
+    .orderBy(desc(tasks.updatedAt));
 };

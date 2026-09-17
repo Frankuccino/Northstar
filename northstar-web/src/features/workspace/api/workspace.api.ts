@@ -32,8 +32,10 @@ const toTask = (r: any): Task => ({
   title: r.title,
   description: r.description ?? null,
   status: r.status as TaskStatus,
+  priority: r.priority ?? "medium",
   assigneeId: r.assignee_id ?? null,
   assigneeName: r.assignee_name ?? null,
+  dueDate: r.due_date ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -199,9 +201,81 @@ export const updateTask = async (
   return toTask(res.data);
 };
 
-export const deleteTask = async (taskId: number): Promise<{ id: number }> => {
-  const res = await api.delete(`/workspace/tasks/${taskId}`);
+// ---- Labels ----------------------------------------------------------------
+export const getLabels = async (projectId: number): Promise<any[]> => {
+  const res = await api.get(`/workspace/projects/${projectId}/labels`);
   return res.data;
+};
+
+export const createLabel = async (
+  projectId: number,
+  data: { name: string; color: string }
+): Promise<any> => {
+  const res = await api.post(`/workspace/projects/${projectId}/labels`, data);
+  return res.data;
+};
+
+export const deleteLabel = async (labelId: number): Promise<void> => {
+  await api.delete(`/workspace/labels/${labelId}`);
+};
+
+export const addLabelToTask = async (taskId: number, labelId: number): Promise<any> => {
+  const res = await api.post(`/workspace/tasks/${taskId}/labels/${labelId}`);
+  return res.data;
+};
+
+export const removeLabelFromTask = async (taskId: number, labelId: number): Promise<void> => {
+  await api.delete(`/workspace/tasks/${taskId}/labels/${labelId}`);
+};
+
+export const getTaskLabels = async (taskId: number): Promise<any[]> => {
+  const res = await api.get(`/workspace/tasks/${taskId}/labels`);
+  return res.data;
+};
+
+// ---- Task Comments ---------------------------------------------------------
+export const getTaskComments = async (taskId: number): Promise<any[]> => {
+  const res = await api.get(`/workspace/tasks/${taskId}/comments`);
+  return res.data;
+};
+
+export const createTaskComment = async (
+  taskId: number,
+  content: string
+): Promise<any> => {
+  const res = await api.post(`/workspace/tasks/${taskId}/comments`, { content });
+  return res.data;
+};
+
+export const deleteTaskComment = async (commentId: number): Promise<void> => {
+  await api.delete(`/workspace/comments/${commentId}`);
+};
+
+// ---- Task Priority & Due Date ---------------------------------------------
+export const updateTaskPriority = async (
+  taskId: number,
+  priority: string
+): Promise<any> => {
+  const res = await api.patch(`/workspace/tasks/${taskId}/priority`, { priority });
+  return res.data;
+};
+
+export const updateTaskDueDate = async (
+  taskId: number,
+  dueDate: string | null
+): Promise<any> => {
+  const res = await api.patch(`/workspace/tasks/${taskId}/due-date`, { dueDate });
+  return res.data;
+};
+
+// ---- Search ----------------------------------------------------------------
+export const searchTasks = async (projectId: number, query: string): Promise<any[]> => {
+  const res = await api.get(`/workspace/projects/${projectId}/search?q=${encodeURIComponent(query)}`);
+  return res.data;
+};
+
+export const deleteTask = async (taskId: number): Promise<void> => {
+  await api.delete(`/workspace/tasks/${taskId}`);
 };
 
 export const deleteProject = async (projectId: number): Promise<{ id: number }> => {

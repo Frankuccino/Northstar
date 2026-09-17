@@ -18,6 +18,26 @@ export const updateTaskSchema = z.object({
   description: z.string().max(2000).nullable().optional(),
 });
 
+// New schemas for task features
+export const TASK_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+
+export const updatePrioritySchema = z.object({
+  priority: z.enum(TASK_PRIORITIES),
+});
+
+export const updateDueDateSchema = z.object({
+  dueDate: z.string().datetime().nullable().optional(),
+});
+
+export const createLabelSchema = z.object({
+  name: z.string().trim().min(1).max(50),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+});
+
+export const createCommentSchema = z.object({
+  content: z.string().trim().min(1).max(5000),
+});
+
 export const moveTaskSchema = z.object({
   status: z.enum(TASK_STATUSES),
 });

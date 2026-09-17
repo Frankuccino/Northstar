@@ -77,8 +77,10 @@ export interface Task {
   title: string;
   description: string | null;
   status: TaskStatus;
+  priority: "low" | "medium" | "high" | "urgent";
   assigneeId: number | null;
   assigneeName: string | null;
+  dueDate: string | null;
   createdAt: string;
   updatedAt: string;
 }

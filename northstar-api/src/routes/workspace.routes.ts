@@ -7,6 +7,10 @@ import {
   updateProjectSchema,
   createTaskSchema,
   updateTaskSchema,
+  updatePrioritySchema,
+  updateDueDateSchema,
+  createLabelSchema,
+  createCommentSchema,
   moveTaskSchema,
   assignTaskSchema,
   generateSuggestionSchema,
@@ -41,6 +45,18 @@ import {
   executeAiIntentHandler,
   listAiActionsHandler,
   registerAiClientHandler,
+  getLabelsHandler,
+  createLabelHandler,
+  deleteLabelHandler,
+  addLabelToTaskHandler,
+  removeLabelFromTaskHandler,
+  getTaskLabelsHandler,
+  getTaskCommentsHandler,
+  createTaskCommentHandler,
+  deleteTaskCommentHandler,
+  updateTaskPriorityHandler,
+  updateTaskDueDateHandler,
+  searchTasksHandler,
 } from "../controllers/workspace.controller.js";
 
 const router = Router();
@@ -163,6 +179,26 @@ router.post(
 router.post("/projects/:id/ai/intent", executeAiIntentHandler);
 router.get("/projects/:id/ai/actions", listAiActionsHandler);
 router.post("/projects/:id/ai/clients", registerAiClientHandler);
+
+// Labels
+router.get("/projects/:id/labels", getLabelsHandler);
+router.post("/projects/:id/labels", authorize("admin", "manager"), validate(createLabelSchema), createLabelHandler);
+router.delete("/labels/:labelId", authorize("admin", "manager"), deleteLabelHandler);
+router.post("/tasks/:taskId/labels/:labelId", addLabelToTaskHandler);
+router.delete("/tasks/:taskId/labels/:labelId", removeLabelFromTaskHandler);
+router.get("/tasks/:taskId/labels", getTaskLabelsHandler);
+
+// Task comments
+router.get("/tasks/:taskId/comments", getTaskCommentsHandler);
+router.post("/tasks/:taskId/comments", validate(createCommentSchema), createTaskCommentHandler);
+router.delete("/comments/:commentId", deleteTaskCommentHandler);
+
+// Task priority & due date
+router.patch("/tasks/:id/priority", authorize("admin", "manager"), validate(updatePrioritySchema), updateTaskPriorityHandler);
+router.patch("/tasks/:id/due-date", authorize("admin", "manager"), validate(updateDueDateSchema), updateTaskDueDateHandler);
+
+// Search
+router.get("/projects/:id/search", searchTasksHandler);
 
 // Project members with stats (for team view)
 router.get("/projects/:id/members", getProjectMembersHandler);
