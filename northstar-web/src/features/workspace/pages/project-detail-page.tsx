@@ -26,6 +26,7 @@ import { workspaceKeys } from "../api/workspace-query-keys";
 import { Board } from "../components/board";
 import { TaskDetail } from "../components/task-detail";
 import { DisintegrateItem } from "@/features/theme/disintegrate-item";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useUpdateProject } from "../hooks/use-update-project";
 import { useUpdateTask } from "../hooks/use-update-task";
 import { useDeleteTask } from "../hooks/use-delete-task";
@@ -73,7 +74,6 @@ export const ProjectDetailPage = () => {
     enabled: id > 0,
   });
 
-  const [title, setTitle] = useState("");
   const [selected, setSelected] = useState<Task | null>(null);
   const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
@@ -120,13 +120,19 @@ export const ProjectDetailPage = () => {
 
   const { data: selectedSuggestions } = useTaskSuggestions(selected?.id ?? 0);
 
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState<string>("medium");
+  const [newTaskDueDate, setNewTaskDueDate] = useState("");
+
   const create = useMutation({
-    mutationFn: () => createTask({ projectId: id, title }),
+    mutationFn: () => createTask({ projectId: id, title: newTaskTitle, priority: newTaskPriority as any, dueDate: newTaskDueDate || undefined }),
     onSuccess: () => {
-      setTitle("");
-      queryClient.invalidateQueries({
-        queryKey: workspaceKeys.projectTasks(id, filters),
-      });
+      setNewTaskTitle("");
+      setNewTaskPriority("medium");
+      setNewTaskDueDate("");
+      setNewTaskOpen(false);
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(id, filters) });
       toast({ type: "success", title: "Task created" });
     },
     onError: (err: any) => {
@@ -273,27 +279,18 @@ export const ProjectDetailPage = () => {
           )}
         </div>
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-          <div className="flex-1 space-y-2">
-            <Label htmlFor="task-title">New task</Label>
-            <Input
-              id="task-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Task title"
-            />
-          </div>
+        {/* New Task Button */}
+        <div className="flex justify-end">
           <Button
-            disabled={!title || backlogFull || create.isPending}
-            onClick={() => create.mutate()}
+            disabled={backlogFull}
+            onClick={() => setNewTaskOpen(true)}
           >
-            Add task
+            + New task
           </Button>
         </div>
         {backlogFull && (
-          <p className="text-xs text-amber-500">
-            Backlog is at its WIP limit ({wipLimitFor("backlog")}). Move or complete
-            a task to add more.
+          <p className="text-xs text-amber-500 text-right">
+            Backlog is at its WIP limit ({wipLimitFor("backlog")}). Move or complete a task to add more.
           </p>
         )}
 
@@ -546,6 +543,65 @@ export const ProjectDetailPage = () => {
           }}
         />
       )}
+
+      {/* New Task Dialog */}
+      <Dialog open={newTaskOpen} onOpenChange={setNewTaskOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newTaskTitle.trim()) create.mutate();
+            }}
+          >
+            <div className="space-y-1">
+              <Label htmlFor="new-task-title">Title</Label>
+              <Input
+                id="new-task-title"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                placeholder="Task title"
+                required
+              />
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-1 space-y-1">
+                <Label>Priority</Label>
+                <Select value={newTaskPriority} onValueChange={(v) => setNewTaskPriority(v as string)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1 space-y-1">
+                <Label>Due Date</Label>
+                <Input
+                  type="date"
+                  value={newTaskDueDate}
+                  onChange={(e) => setNewTaskDueDate(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setNewTaskOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!newTaskTitle.trim() || create.isPending}>
+                {create.isPending ? "Creating..." : "Create Task"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {deletingProject && (
         <ConfirmDeleteDialog

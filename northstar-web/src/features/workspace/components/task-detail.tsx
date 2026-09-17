@@ -152,13 +152,17 @@ export const TaskDetail = ({
   // ---- Priority -----------------------------------------------------------
   const priorityMut = useMutation({
     mutationFn: (priority: string) => updateTaskPriority(task.id, priority),
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(projectId) });
+    },
   });
 
   // ---- Due Date -----------------------------------------------------------
   const dueDateMut = useMutation({
     mutationFn: (dueDate: string | null) => updateTaskDueDate(task.id, dueDate),
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(projectId) });
+    },
   });
 
   // ---- Labels -------------------------------------------------------------

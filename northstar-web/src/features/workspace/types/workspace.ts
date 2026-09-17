@@ -128,6 +128,8 @@ export interface CreateTaskInput {
   title: string;
   description?: string;
   assigneeId?: number;
+  priority?: "low" | "medium" | "high" | "urgent";
+  dueDate?: string;
 }
 
 export interface GenerateSuggestionInput {
