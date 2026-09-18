@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/features/theme/theme-context";
 import {
   type Task,
   type SuggestionType,
@@ -15,25 +16,71 @@ const SUGGESTION_BADGE: Record<SuggestionType, string> = {
   commit_guidance: "Commit",
 };
 
-// "Jane Doe" -> "JD"; "jane" -> "JA" (fallback to first 2 chars).
-const initials = (name: string): string => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  low: "bg-blue-100 text-blue-700 border-blue-300",
-  medium: "bg-gray-100 text-gray-700 border-gray-300",
-  high: "bg-orange-100 text-orange-700 border-orange-300",
-  urgent: "bg-red-100 text-red-700 border-red-300",
-};
-
 const PRIORITY_LABELS: Record<string, string> = {
   low: "Low",
   medium: "Med",
   high: "High",
   urgent: "Urgent",
+};
+
+const PRIORITY_SEMANTIC: Record<string, "primary" | "muted" | "warning" | "danger"> = {
+  low: "primary",
+  medium: "muted",
+  high: "warning",
+  urgent: "danger",
+};
+
+const getPriorityStyle = (
+  priority: string,
+  theme: {
+    colors: {
+      primary: string;
+      muted: string;
+      mutedForeground: string;
+      border: string;
+    };
+  },
+): React.CSSProperties => {
+  const semantic = PRIORITY_SEMANTIC[priority] ?? "muted";
+  switch (semantic) {
+    case "primary":
+      return {
+        background: `color-mix(in oklch, ${theme.colors.muted} 5%, transparent)`,
+        color: theme.colors.primary,
+        borderColor: `color-mix(in oklch, ${theme.colors.border} 40%, transparent)`,
+      };
+    case "muted":
+      return {
+        background: theme.colors.muted,
+        color: theme.colors.mutedForeground,
+        borderColor: `color-mix(in oklch, ${theme.colors.mutedForeground} 15%, transparent)`,
+      };
+    case "warning":
+      return {
+        background: `color-mix(in oklch, oklch(0.92 0.04 80) 15%, transparent)`,
+        color: `oklch(0.65 0.15 70)`,
+        borderColor: `color-mix(in oklch, oklch(0.85 0.08 80) 30%, transparent)`,
+      };
+    case "danger":
+      return {
+        background: `color-mix(in oklch, oklch(0.95 0.05 25) 12%, transparent)`,
+        color: `oklch(0.6 0.18 25)`,
+        borderColor: `color-mix(in oklch, oklch(0.88 0.08 25) 30%, transparent)`,
+      };
+    default:
+      return {
+        background: theme.colors.muted,
+        color: theme.colors.mutedForeground,
+        borderColor: `color-mix(in oklch, ${theme.colors.mutedForeground} 15%, transparent)`,
+      };
+  }
+};
+
+// "Jane Doe" -> "JD"; "jane" -> "JA" (fallback to first 2 chars).
+const initials = (name: string): string => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
 };
 
 interface TaskCardProps {
@@ -46,6 +93,7 @@ interface TaskCardProps {
 export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
+  const { theme } = useTheme();
 
   const handleSave = () => {
     if (editTitle.trim() && editTitle !== task.title) {
@@ -72,6 +120,8 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
         day: "numeric",
       })
     : null;
+
+  const priorityStyle = getPriorityStyle(task.priority, theme);
 
   return (
     <Card
@@ -106,10 +156,8 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
 
       <div className="mt-1.5 flex items-center gap-1.5 text-xs">
         <span
-          className={cn(
-            "rounded-full border px-1.5 py-0.5 font-medium",
-            PRIORITY_COLORS[task.priority] ?? PRIORITY_COLORS.medium
-          )}
+          className="rounded-full border px-1.5 py-0.5 font-medium"
+          style={priorityStyle}
         >
           {PRIORITY_LABELS[task.priority] ?? "Med"}
         </span>
