@@ -43,6 +43,7 @@ import {
   listAiActions,
 } from "../services/ai.service.js";
 import { registerAiClient } from "../services/ai-client.service.js";
+import { getAiProvider } from "../services/ai-provider.service.js";
 import { listTasksQuerySchema, listInvitationsQuerySchema } from "../schemas/workspace.schema.js";
 import { executeAiIntentSchema, listAiActionsQuerySchema } from "../schemas/workspace.schema.js";
 
@@ -447,6 +448,66 @@ export const registerAiClientHandler = async (
       scope: scope ?? "write",
     });
     res.status(201).json(client);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const aiChatHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { message } = req.body;
+    const projectId = Number(req.params.id);
+
+    const provider = getAiProvider();
+    if (!provider) {
+      return res.status(503).json({ error: "AI provider not configured. Set GROQ_API_KEY." });
+    }
+
+    const systemPrompt = `You are an AI assistant for a Kanban project management tool. Help users manage tasks through natural language.
+
+Available actions:
+- create_task: Create a new task (requires title, optional status)
+- move_task: Move a task to a different column (requires status: backlog, ai_drafting, ready, in_progress, needs_revision, validated, done)
+- assign_task: Assign a task to someone (requires assigneeName)
+- list_tasks: Show tasks (no params needed)
+- help: Show help info
+
+Respond in JSON format:
+{"intent": "action_name", "payload": {"key": "value"}, "message": "Human readable response"}
+
+Example responses:
+{"intent": "create_task", "payload": {"title": "Fix bug", "status": "backlog"}, "message": "Created task \\"Fix bug\\" in backlog"}
+{"intent": "move_task", "payload": {"status": "in_progress"}, "message": "Moved task to in_progress"}
+{"intent": "help", "payload": {}, "message": "Here's what I can do:"}`;
+
+    const result = await provider.chat({
+      systemPrompt,
+      userMessage: message,
+    });
+
+    // Execute the intent if it's a valid action
+    let executionResult = null;
+    if (result.intent !== "help" && result.intent !== "unknown" && result.intent !== "list_tasks") {
+      executionResult = await executeAiIntent({
+        clientId: 0,
+        actorUserId: (req as any).user?.id,
+        projectId,
+        intent: result.intent,
+        payload: result.payload,
+      });
+    }
+
+    res.json({
+      content: result.content,
+      message: result.message ?? result.content,
+      intent: result.intent,
+      payload: result.payload,
+      executed: executionResult?.ok ?? false,
+    });
   } catch (err) {
     next(err);
   }

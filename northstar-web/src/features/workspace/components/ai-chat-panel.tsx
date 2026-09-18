@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { executeAiIntent, type AiMessage } from "../api/ai.api";
+import { type AiMessage } from "../api/ai.api";
 
 interface Position {
   x: number;
@@ -82,57 +82,6 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     setMessages((prev) => [...prev, msg]);
   };
 
-  const parseIntent = (text: string): { intent: string; payload: Record<string, unknown> } | null => {
-    const lower = text.toLowerCase().trim();
-
-    if (lower.includes("create") || lower.includes("add") || lower.includes("new")) {
-      const titleMatch = text.match(/(?:called|named|titled|task)\s+["']?([^"']+?)["']?(?:\s+(?:in|to)|$)/i) ||
-                         text.match(/(?:create|add|new)\s+(?:a\s+)?(?:task\s+)?["']?([^"']+?)["']?(?:\s+(?:in|to)|$)/i);
-      const statusMatch = text.match(/\b(backlog|ai_drafting|ready|in_progress|needs_revision|validated|done)\b/i);
-
-      if (titleMatch) {
-        return {
-          intent: "create_task",
-          payload: {
-            title: titleMatch[1].trim(),
-            status: statusMatch ? statusMatch[1] : undefined,
-          },
-        };
-      }
-    }
-
-    if (lower.includes("move") || lower.includes("set") || lower.includes("change")) {
-      const taskMatch = text.match(/(?:task|card)\s+["']?([^"']+?)["']?\s+(?:to|into|in)\s+(\w+)/i) ||
-                        text.match(/move\s+["']?([^"']+?)["']?\s+to\s+(\w+)/i);
-      const statusMatch = text.match(/\b(backlog|ai_drafting|ready|in_progress|needs_revision|validated|done)\b/i);
-
-      if (taskMatch || statusMatch) {
-        return {
-          intent: "move_task",
-          payload: {
-            taskId: taskMatch ? taskMatch[1] : undefined,
-            status: statusMatch ? statusMatch[1] : undefined,
-          },
-        };
-      }
-    }
-
-    if (lower.includes("assign")) {
-      const assignMatch = text.match(/assign\s+["']?([^"']+?)["']?\s+to\s+(\w+)/i);
-      if (assignMatch) {
-        return {
-          intent: "assign_task",
-          payload: {
-            taskId: assignMatch[1],
-            assigneeId: assignMatch[2],
-          },
-        };
-      }
-    }
-
-    return null;
-  };
-
   const handleCommand = (cmd: string): boolean => {
     const command = cmd.toLowerCase().trim();
 
@@ -182,31 +131,32 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
 
     setIsLoading(true);
 
-    const parsed = parseIntent(userInput);
-
-    if (!parsed) {
-      addAssistantMessage(
-        "I didn't understand that. Try:\n" +
-        "\"Create a task called 'Fix bug'\"\n" +
-        "\"Move 'Fix bug' to in_progress\"\n" +
-        "\"Assign 'Fix bug' to John\"\n" +
-        "Or type /help for all commands."
-      );
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const result = await executeAiIntent(id, parsed);
+      const res = await fetch(`/workspace/projects/${id}/ai/intent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userInput }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error ?? "Failed to get AI response");
+      }
+
+      const data = await res.json();
+
       addAssistantMessage(
-        `Done! ${parsed.intent.replace("_", " ")} completed successfully.`,
-        { type: parsed.intent, result: result.ok ? "success" : "failed" }
+        data.content,
+        { type: data.intent, result: data.intent !== "unknown" ? "success" : "error" }
       );
-      onTasksChanged();
+
+      if (data.intent !== "unknown") {
+        onTasksChanged();
+      }
     } catch (err: any) {
       addAssistantMessage(
-        err?.response?.data?.error ?? "Something went wrong. Please try again.",
-        { type: parsed.intent, result: "error" }
+        err.message ?? "Something went wrong. Please try again.",
+        { type: "error", result: "error" }
       );
     } finally {
       setIsLoading(false);

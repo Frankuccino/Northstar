@@ -27,30 +27,18 @@ const getStoredKey = (): string | null => {
   return localStorage.getItem(AI_KEY_STORAGE);
 };
 
-const registerClient = async (projectId: number): Promise<string> => {
-  const res = await api.post(`/workspace/projects/${projectId}/ai/clients`, {
-    name: "Northstar Web",
-    scope: "write",
-  });
-  return res.data.apiKey;
-};
-
-const ensureAiKey = async (projectId: number): Promise<string> => {
-  const existingKey = getStoredKey();
-  if (existingKey) return existingKey;
-
-  const newKey = await registerClient(projectId);
-  localStorage.setItem(AI_KEY_STORAGE, newKey);
-  return newKey;
-};
-
 export const executeAiIntent = async (
   projectId: number,
   request: AiIntentRequest,
 ): Promise<AiIntentResponse> => {
-  const apiKey = await ensureAiKey(projectId);
-  const res = await api.post(`/workspace/projects/${projectId}/ai/intent`, request, {
-    headers: { "x-ai-api-key": apiKey },
-  });
+  const res = await api.post(`/workspace/projects/${projectId}/ai/intent`, request);
+  return res.data;
+};
+
+export const aiChat = async (
+  projectId: number,
+  message: string,
+): Promise<{ content: string; message: string; intent: string; payload: Record<string, unknown>; executed: boolean }> => {
+  const res = await api.post(`/workspace/projects/${projectId}/ai/chat`, { message });
   return res.data;
 };
