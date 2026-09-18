@@ -30,6 +30,7 @@ const getPriorityStyle = (
       primary: string;
       foreground: string;
       accent: string;
+      accentForeground: string;
       destructive: string;
       muted: string;
       mutedForeground: string;
@@ -39,25 +40,25 @@ const getPriorityStyle = (
   switch (priority) {
     case "low":
       return {
-        background: `color-mix(in oklch, ${theme.colors.muted} 8%, transparent)`,
-        color: theme.colors.primary,
-        borderColor: `color-mix(in oklch, ${theme.colors.primary} 25%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.primary} 8%, transparent)`,
+        color: `color-mix(in oklch, ${theme.colors.primary} 70%, ${theme.colors.foreground} 30%)`,
+        borderColor: `color-mix(in oklch, ${theme.colors.primary} 20%, transparent)`,
       };
     case "medium":
       return {
-        background: theme.colors.muted,
+        background: `color-mix(in oklch, ${theme.colors.muted} 60%, transparent)`,
         color: theme.colors.mutedForeground,
-        borderColor: `color-mix(in oklch, ${theme.colors.mutedForeground} 15%, transparent)`,
+        borderColor: `color-mix(in oklch, ${theme.colors.mutedForeground} 20%, transparent)`,
       };
     case "high":
       return {
-        background: `color-mix(in oklch, ${theme.colors.accent} 10%, transparent)`,
-        color: `color-mix(in oklch, ${theme.colors.accent} 60%, ${theme.colors.foreground} 40%)`,
-        borderColor: `color-mix(in oklch, ${theme.colors.accent} 30%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.accent} 18%, transparent)`,
+        color: theme.colors.accentForeground,
+        borderColor: `color-mix(in oklch, ${theme.colors.accent} 35%, transparent)`,
       };
     case "urgent":
       return {
-        background: `color-mix(in oklch, ${theme.colors.destructive} 10%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.destructive} 12%, transparent)`,
         color: theme.colors.destructive,
         borderColor: `color-mix(in oklch, ${theme.colors.destructive} 25%, transparent)`,
       };
