@@ -58,9 +58,9 @@ const getPriorityStyle = (
       };
     case "urgent":
       return {
-        background: `color-mix(in oklch, ${theme.colors.destructive} 45%, transparent)`,
-        color: theme.colors.destructive,
-        borderColor: `color-mix(in oklch, ${theme.colors.destructive} 55%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.destructive} 18%, transparent)`,
+        color: `color-mix(in oklch, ${theme.colors.destructive} 80%, ${theme.colors.foreground} 20%)`,
+        borderColor: `color-mix(in oklch, ${theme.colors.destructive} 30%, transparent)`,
       };
     default:
       return {
