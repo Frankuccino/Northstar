@@ -35,7 +35,7 @@ const toTask = (r: any): Task => ({
   priority: r.priority ?? "medium",
   assigneeId: r.assignee_id ?? null,
   assigneeName: r.assignee_name ?? null,
-  dueDate: r.due_date ?? null,
+  dueDate: r.due_date ? (r.due_date instanceof Date ? r.due_date.toISOString() : r.due_date) : null,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });

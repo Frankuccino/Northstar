@@ -142,14 +142,16 @@ export const getTasksByProject = async (
   return db
     .select({
       id: tasks.id,
-      projectId: tasks.projectId,
+      project_id: tasks.projectId,
       title: tasks.title,
       description: tasks.description,
       status: tasks.status,
-      assigneeId: tasks.assigneeId,
-      assigneeName: users.name,
-      createdAt: tasks.createdAt,
-      updatedAt: tasks.updatedAt,
+      priority: tasks.priority,
+      assignee_id: tasks.assigneeId,
+      assignee_name: users.name,
+      due_date: tasks.dueDate,
+      created_at: tasks.createdAt,
+      updated_at: tasks.updatedAt,
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
