@@ -40,27 +40,27 @@ const getPriorityStyle = (
   switch (priority) {
     case "low":
       return {
-        background: `color-mix(in oklch, ${theme.colors.primary} 8%, transparent)`,
-        color: `color-mix(in oklch, ${theme.colors.primary} 70%, ${theme.colors.foreground} 30%)`,
-        borderColor: `color-mix(in oklch, ${theme.colors.primary} 20%, transparent)`,
-      };
-    case "medium":
-      return {
-        background: `color-mix(in oklch, ${theme.colors.muted} 60%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.muted} 25%, transparent)`,
         color: theme.colors.mutedForeground,
         borderColor: `color-mix(in oklch, ${theme.colors.mutedForeground} 20%, transparent)`,
       };
+    case "medium":
+      return {
+        background: `color-mix(in oklch, ${theme.colors.primary} 20%, transparent)`,
+        color: `color-mix(in oklch, ${theme.colors.primary} 85%, ${theme.colors.foreground} 15%)`,
+        borderColor: `color-mix(in oklch, ${theme.colors.primary} 30%, transparent)`,
+      };
     case "high":
       return {
-        background: `color-mix(in oklch, ${theme.colors.accent} 18%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.accent} 30%, transparent)`,
         color: theme.colors.accentForeground,
-        borderColor: `color-mix(in oklch, ${theme.colors.accent} 35%, transparent)`,
+        borderColor: `color-mix(in oklch, ${theme.colors.accent} 45%, transparent)`,
       };
     case "urgent":
       return {
-        background: `color-mix(in oklch, ${theme.colors.destructive} 12%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.destructive} 45%, transparent)`,
         color: theme.colors.destructive,
-        borderColor: `color-mix(in oklch, ${theme.colors.destructive} 25%, transparent)`,
+        borderColor: `color-mix(in oklch, ${theme.colors.destructive} 55%, transparent)`,
       };
     default:
       return {
