@@ -23,49 +23,43 @@ const PRIORITY_LABELS: Record<string, string> = {
   urgent: "Urgent",
 };
 
-const PRIORITY_SEMANTIC: Record<string, "primary" | "muted" | "warning" | "danger"> = {
-  low: "primary",
-  medium: "muted",
-  high: "warning",
-  urgent: "danger",
-};
-
 const getPriorityStyle = (
   priority: string,
   theme: {
     colors: {
       primary: string;
+      foreground: string;
+      accent: string;
+      destructive: string;
       muted: string;
       mutedForeground: string;
-      border: string;
     };
   },
 ): React.CSSProperties => {
-  const semantic = PRIORITY_SEMANTIC[priority] ?? "muted";
-  switch (semantic) {
-    case "primary":
+  switch (priority) {
+    case "low":
       return {
-        background: `color-mix(in oklch, ${theme.colors.muted} 5%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.muted} 8%, transparent)`,
         color: theme.colors.primary,
-        borderColor: `color-mix(in oklch, ${theme.colors.border} 40%, transparent)`,
+        borderColor: `color-mix(in oklch, ${theme.colors.primary} 25%, transparent)`,
       };
-    case "muted":
+    case "medium":
       return {
         background: theme.colors.muted,
         color: theme.colors.mutedForeground,
         borderColor: `color-mix(in oklch, ${theme.colors.mutedForeground} 15%, transparent)`,
       };
-    case "warning":
+    case "high":
       return {
-        background: `color-mix(in oklch, oklch(0.92 0.04 80) 15%, transparent)`,
-        color: `oklch(0.65 0.15 70)`,
-        borderColor: `color-mix(in oklch, oklch(0.85 0.08 80) 30%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.accent} 10%, transparent)`,
+        color: `color-mix(in oklch, ${theme.colors.accent} 60%, ${theme.colors.foreground} 40%)`,
+        borderColor: `color-mix(in oklch, ${theme.colors.accent} 30%, transparent)`,
       };
-    case "danger":
+    case "urgent":
       return {
-        background: `color-mix(in oklch, oklch(0.95 0.05 25) 12%, transparent)`,
-        color: `oklch(0.6 0.18 25)`,
-        borderColor: `color-mix(in oklch, oklch(0.88 0.08 25) 30%, transparent)`,
+        background: `color-mix(in oklch, ${theme.colors.destructive} 10%, transparent)`,
+        color: theme.colors.destructive,
+        borderColor: `color-mix(in oklch, ${theme.colors.destructive} 25%, transparent)`,
       };
     default:
       return {

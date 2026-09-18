@@ -11,6 +11,8 @@ export interface Theme {
     primaryForeground: string;
     accent: string;
     accentForeground: string;
+    destructive: string;
+    destructiveForeground: string;
     background: string;
     foreground: string;
     card: string;
@@ -38,6 +40,8 @@ const themes: Record<ThemeName, Theme> = {
       primaryForeground: "oklch(0.98 0.01 350)",
       accent: "oklch(0.92 0.04 340)",
       accentForeground: "oklch(0.35 0.15 350)",
+      destructive: "oklch(0.65 0.22 25)",
+      destructiveForeground: "oklch(0.98 0.01 25)",
       background: "oklch(0.98 0.01 350)",
       foreground: "oklch(0.25 0.02 350)",
       card: "oklch(0.99 0.005 350)",
@@ -63,6 +67,8 @@ const themes: Record<ThemeName, Theme> = {
       primaryForeground: "oklch(0.98 0.01 290)",
       accent: "oklch(0.92 0.04 290)",
       accentForeground: "oklch(0.35 0.12 290)",
+      destructive: "oklch(0.65 0.22 25)",
+      destructiveForeground: "oklch(0.98 0.01 25)",
       background: "oklch(0.98 0.01 290)",
       foreground: "oklch(0.25 0.02 290)",
       card: "oklch(0.99 0.005 290)",
@@ -88,6 +94,8 @@ const themes: Record<ThemeName, Theme> = {
       primaryForeground: "oklch(0.98 0.01 30)",
       accent: "oklch(0.92 0.04 30)",
       accentForeground: "oklch(0.4 0.12 30)",
+      destructive: "oklch(0.65 0.22 25)",
+      destructiveForeground: "oklch(0.98 0.01 25)",
       background: "oklch(0.98 0.01 30)",
       foreground: "oklch(0.25 0.02 30)",
       card: "oklch(0.99 0.005 30)",
@@ -113,6 +121,8 @@ const themes: Record<ThemeName, Theme> = {
       primaryForeground: "oklch(0.98 0.01 160)",
       accent: "oklch(0.92 0.04 160)",
       accentForeground: "oklch(0.35 0.1 160)",
+      destructive: "oklch(0.65 0.22 25)",
+      destructiveForeground: "oklch(0.98 0.01 25)",
       background: "oklch(0.98 0.01 160)",
       foreground: "oklch(0.25 0.02 160)",
       card: "oklch(0.99 0.005 160)",
@@ -138,6 +148,8 @@ const themes: Record<ThemeName, Theme> = {
       primaryForeground: "oklch(0.98 0.01 230)",
       accent: "oklch(0.92 0.04 230)",
       accentForeground: "oklch(0.35 0.1 230)",
+      destructive: "oklch(0.65 0.22 25)",
+      destructiveForeground: "oklch(0.98 0.01 25)",
       background: "oklch(0.98 0.01 230)",
       foreground: "oklch(0.25 0.02 230)",
       card: "oklch(0.99 0.005 230)",
@@ -163,6 +175,8 @@ const themes: Record<ThemeName, Theme> = {
       primaryForeground: "oklch(0.98 0.01 290)",
       accent: "oklch(0.25 0.02 290)",
       accentForeground: "oklch(0.95 0.02 290)",
+      destructive: "oklch(0.65 0.22 25)",
+      destructiveForeground: "oklch(0.98 0.01 25)",
       background: "oklch(0.12 0.02 290)",
       foreground: "oklch(0.95 0.02 290)",
       card: "oklch(0.18 0.02 290)",
