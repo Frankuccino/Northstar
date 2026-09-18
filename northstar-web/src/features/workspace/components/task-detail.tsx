@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -149,10 +149,20 @@ export const TaskDetail = ({
       setError(e?.response?.data?.error ?? "Failed to send invitation"),
   });
 
+  const [localPriority, setLocalPriority] = useState(task.priority);
+  const [localDueDate, setLocalDueDate] = useState(task.dueDate);
+
+  // Sync local state when task prop changes
+  useEffect(() => {
+    setLocalPriority(task.priority);
+    setLocalDueDate(task.dueDate);
+  }, [task.priority, task.dueDate]);
+
   // ---- Priority -----------------------------------------------------------
   const priorityMut = useMutation({
     mutationFn: (priority: string) => updateTaskPriority(task.id, priority),
     onSuccess: () => {
+      setLocalPriority(task.priority);
       queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(projectId) });
     },
   });
@@ -161,6 +171,7 @@ export const TaskDetail = ({
   const dueDateMut = useMutation({
     mutationFn: (dueDate: string | null) => updateTaskDueDate(task.id, dueDate),
     onSuccess: () => {
+      setLocalDueDate(task.dueDate);
       queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(projectId) });
     },
   });
@@ -234,8 +245,11 @@ export const TaskDetail = ({
             <div className="flex-1">
               <Label className="text-xs text-muted-foreground">Priority</Label>
               <Select
-                value={task.priority}
-                onValueChange={(v) => priorityMut.mutate(v as string)}
+                value={localPriority}
+                onValueChange={(v) => {
+                  setLocalPriority(v as any);
+                  priorityMut.mutate(v as string);
+                }}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
@@ -252,8 +266,12 @@ export const TaskDetail = ({
               <Label className="text-xs text-muted-foreground">Due Date</Label>
               <Input
                 type="date"
-                value={task.dueDate ? task.dueDate.split("T")[0] : ""}
-                onChange={(e) => dueDateMut.mutate(e.target.value || null)}
+                value={localDueDate ? localDueDate.split("T")[0] : ""}
+                onChange={(e) => {
+                  const val = e.target.value || null;
+                  setLocalDueDate(val);
+                  dueDateMut.mutate(val);
+                }}
                 className={isOverdue ? "border-red-500" : ""}
               />
               {isOverdue && (

@@ -32,8 +32,7 @@ interface BoardColumnProps {
   suggestionByTask: Map<number, SuggestionType[]>;
   onOpenTask: (task: Task) => void;
   onUpdateTask?: (task: Task, title: string) => void;
-  disintegratingTaskId?: number | null;
-  onDisintegrateComplete?: (taskId: number) => void;
+  disintegratingTaskIds: Set<number>;
   // While a card is being dragged, only legal drop targets should accept it.
   // `allowedTargets` is null when no drag is in progress (all columns normal).
   allowedTargets: Set<TaskStatus> | null;
@@ -45,18 +44,12 @@ const BoardColumn = ({
   suggestionByTask,
   onOpenTask,
   onUpdateTask,
-  disintegratingTaskId,
-  onDisintegrateComplete,
+  disintegratingTaskIds,
   allowedTargets,
 }: BoardColumnProps) => {
-  // A column is a valid drop zone during a drag only if it's the active card's
-  // current column or one of its legal next states. When not dragging,
-  // `allowedTargets` is null and every column is enabled.
   const isAllowed =
     allowedTargets === null || allowedTargets.has(status);
 
-  // WIP cap (frontend mirror — server is authoritative). A full column is
-  // greyed and non-droppable, consistent with the transition guardrail.
   const cap = wipLimitFor(status);
   const atCap = tasks.length >= cap;
   const isDroppable = isAllowed && !atCap;
@@ -101,8 +94,7 @@ const BoardColumn = ({
               suggestionTypes={suggestionByTask.get(task.id) ?? []}
               onOpen={onOpenTask}
               onUpdate={onUpdateTask}
-              disintegrating={disintegratingTaskId === task.id}
-              onDisintegrateComplete={() => onDisintegrateComplete?.(task.id)}
+              disintegrating={disintegratingTaskIds.has(task.id)}
             />
           ))
         )}
@@ -117,7 +109,6 @@ interface DraggableTaskCardProps {
   onOpen: (task: Task) => void;
   onUpdate?: (task: Task, title: string) => void;
   disintegrating?: boolean;
-  onDisintegrateComplete?: () => void;
 }
 
 const DraggableTaskCard = ({
@@ -126,7 +117,6 @@ const DraggableTaskCard = ({
   onOpen,
   onUpdate,
   disintegrating,
-  onDisintegrateComplete,
 }: DraggableTaskCardProps) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: task.id });
@@ -138,7 +128,7 @@ const DraggableTaskCard = ({
       {...listeners}
       className={isDragging ? "opacity-40" : ""}
     >
-      <DisintegrateItem active={disintegrating ?? false} onComplete={onDisintegrateComplete}>
+      <DisintegrateItem active={disintegrating ?? false}>
         <TaskCard
           task={task}
           suggestionTypes={suggestionTypes}
@@ -156,8 +146,7 @@ interface BoardProps {
   onOpenTask: (task: Task) => void;
   onMoveTask: (task: Task, status: TaskStatus) => void;
   onUpdateTask?: (task: Task, title: string) => void;
-  disintegratingTaskId?: number | null;
-  onDisintegrateComplete?: (taskId: number) => void;
+  disintegratingTaskIds: Set<number>;
 }
 
 export const Board = ({
@@ -166,8 +155,7 @@ export const Board = ({
   onOpenTask,
   onMoveTask,
   onUpdateTask,
-  disintegratingTaskId,
-  onDisintegrateComplete,
+  disintegratingTaskIds,
 }: BoardProps) => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[] | null>(null);
@@ -175,24 +163,15 @@ export const Board = ({
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
-  // Use localTasks during drag for instant visual feedback, otherwise use props
   const displayTasks = localTasks ?? tasks;
 
-  // Clear local override when server data changes
   useEffect(() => {
     setLocalTasks(null);
   }, [tasks]);
 
-  // Pointer-based collision: a drop only registers when the pointer is directly
-  // inside a registered (enabled) droppable. Disabled (greyed/illegal) columns
-  // are excluded, so hovering one can't fall back to a neighbouring column —
-  // the card simply snaps back, instead of being misfiled into an adjacent lane.
   const collisionDetection: CollisionDetection = (args) => {
     const within = pointerWithin(args);
     if (within.length === 0) return within;
-    // Only keep hits whose droppable is enabled. Disabled (greyed/illegal)
-    // columns are dropped from the candidate set entirely, so the pointer can
-    // never resolve a drop onto one — or onto a neighbour standing in for it.
     const enabled = args.droppableContainers.filter((c) => !c.disabled);
     return within.filter((hit) =>
       enabled.some((c) => c.id === hit.id),
@@ -209,7 +188,6 @@ export const Board = ({
   const taskById = new Map(displayTasks.map((t) => [t.id, t]));
   const activeTask = activeId != null ? taskById.get(activeId) ?? null : null;
 
-  // Legal drop targets for the card currently being dragged. Null = idle.
   const allowedTargets: Set<TaskStatus> | null =
     activeTask != null
       ? new Set<TaskStatus>([activeTask.status, ...legalNextStatuses(activeTask.status)])
@@ -228,7 +206,6 @@ export const Board = ({
     if (!moved || !BOARD_COLUMNS.includes(target)) return;
     if (moved.status === target) return;
     
-    // Instantly update local state for seamless visual feedback
     setLocalTasks((prev) => {
       const base = prev ?? tasks;
       return base.map((t) => (t.id === moved.id ? { ...t, status: target } : t));
@@ -253,8 +230,7 @@ export const Board = ({
             suggestionByTask={suggestionByTask}
             onOpenTask={onOpenTask}
             onUpdateTask={onUpdateTask}
-            disintegratingTaskId={disintegratingTaskId}
-            onDisintegrateComplete={onDisintegrateComplete}
+            disintegratingTaskIds={disintegratingTaskIds}
             allowedTargets={allowedTargets}
           />
         ))}

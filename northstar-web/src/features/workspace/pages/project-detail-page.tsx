@@ -75,7 +75,7 @@ export const ProjectDetailPage = () => {
   });
 
   const [selected, setSelected] = useState<Task | null>(null);
-  const [disintegratingTaskId, setDisintegratingTaskId] = useState<number | null>(null);
+  const [disintegratingTaskIds, setDisintegratingTaskIds] = useState<Set<number>>(new Set());
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,11 +122,16 @@ export const ProjectDetailPage = () => {
 
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskPriority, setNewTaskPriority] = useState<string>("medium");
+  const [newTaskPriority, setNewTaskPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
 
   const create = useMutation({
-    mutationFn: () => createTask({ projectId: id, title: newTaskTitle, priority: newTaskPriority as any, dueDate: newTaskDueDate || undefined }),
+    mutationFn: () => createTask({
+      projectId: id,
+      title: newTaskTitle,
+      priority: newTaskPriority,
+      dueDate: newTaskDueDate ? `${newTaskDueDate}T00:00:00.000Z` : undefined,
+    }),
     onSuccess: () => {
       setNewTaskTitle("");
       setNewTaskPriority("medium");
@@ -356,15 +361,7 @@ export const ProjectDetailPage = () => {
           onUpdateTask={(task, title) =>
             updateTaskMutation.mutate({ id: task.id, data: { title } })
           }
-          disintegratingTaskId={disintegratingTaskId}
-          onDisintegrateComplete={(taskId) => {
-            setDisintegratingTaskId(null);
-            deleteTaskMutation.mutate(taskId, {
-              onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(id, filters) });
-              },
-            });
-          }}
+          disintegratingTaskIds={disintegratingTaskIds}
         />
 
         {selected && (
@@ -539,7 +536,22 @@ export const ProjectDetailPage = () => {
             if (!open) setDeletingTask(null);
           }}
           onConfirm={() => {
-            setDisintegratingTaskId(deletingTask.id);
+            setDisintegratingTaskIds((prev) => {
+              const next = new Set(prev);
+              next.add(deletingTask.id);
+              return next;
+            });
+            // Immediately delete - disintegration is just visual
+            deleteTaskMutation.mutate(deletingTask.id, {
+              onSuccess: () => {
+                setDisintegratingTaskIds((prev) => {
+                  const next = new Set(prev);
+                  next.delete(deletingTask.id);
+                  return next;
+                });
+                queryClient.invalidateQueries({ queryKey: workspaceKeys.projectTasks(id, filters) });
+              },
+            });
           }}
         />
       )}
@@ -570,7 +582,7 @@ export const ProjectDetailPage = () => {
             <div className="flex gap-4">
               <div className="flex-1 space-y-1">
                 <Label>Priority</Label>
-                <Select value={newTaskPriority} onValueChange={(v) => setNewTaskPriority(v as string)}>
+                <Select value={newTaskPriority} onValueChange={(v) => setNewTaskPriority(v as "low" | "medium" | "high" | "urgent")}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

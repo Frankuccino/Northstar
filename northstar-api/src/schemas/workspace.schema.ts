@@ -11,6 +11,8 @@ export const createTaskSchema = z.object({
   title: z.string().trim().min(1).max(200),
   description: z.string().max(2000).optional(),
   assigneeId: z.number().int().positive().optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+  dueDate: z.string().nullable().optional(),
 });
 
 export const updateTaskSchema = z.object({
@@ -26,7 +28,7 @@ export const updatePrioritySchema = z.object({
 });
 
 export const updateDueDateSchema = z.object({
-  dueDate: z.string().datetime().nullable().optional(),
+  dueDate: z.string().nullable().optional(),
 });
 
 export const createLabelSchema = z.object({

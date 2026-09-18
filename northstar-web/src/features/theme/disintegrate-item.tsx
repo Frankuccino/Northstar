@@ -16,15 +16,25 @@ interface DisintegrateItemProps {
   children: ReactNode;
   active: boolean;
   onComplete?: () => void;
+  duration?: number;
   className?: string;
 }
 
-export const DisintegrateItem = ({ children, active, onComplete, className = "" }: DisintegrateItemProps) => {
+const DEFAULT_DURATION = 600; // Fixed duration in ms
+
+export const DisintegrateItem = ({
+  children,
+  active,
+  onComplete,
+  duration = DEFAULT_DURATION,
+  className = "",
+}: DisintegrateItemProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
-  const particlesRef = useRef<Particle[]>([]);
+  const startTimeRef = useRef<number>(0);
   const animationRef = useRef<number>(0);
+  const completedRef = useRef(false);
 
   const initParticles = useCallback(() => {
     if (!containerRef.current) return [];
@@ -39,13 +49,13 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
         const x = col * gridSize + gridSize / 2;
         const y = row * gridSize + gridSize / 2;
         const angle = Math.random() * Math.PI * 2;
-        const speed = 3 + Math.random() * 6;
+        const speed = 2 + Math.random() * 4;
 
         particles.push({
           x,
           y,
           vx: Math.cos(angle) * speed,
-          vy: Math.sin(angle) * speed - 3,
+          vy: Math.sin(angle) * speed - 2,
           size: gridSize * (0.4 + Math.random() * 0.6),
           color: getRandomColor(),
           life: 1,
@@ -57,21 +67,27 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
     return particles;
   }, []);
 
-  const draw = useCallback(() => {
+  const particlesRef = useRef<Particle[]>([]);
+
+  const draw = useCallback((timestamp: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    const elapsed = timestamp - startTimeRef.current;
+    const progress = Math.min(elapsed / duration, 1);
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Update and draw particles
     particlesRef.current = particlesRef.current
       .map((p) => ({
         ...p,
         x: p.x + p.vx,
         y: p.y + p.vy,
-        vy: p.vy + 0.2,
-        life: p.life - 0.025,
+        vy: p.vy + 0.15,
+        life: 1 - progress,
         rotation: p.rotation + p.rotationSpeed,
       }))
       .filter((p) => p.life > 0);
@@ -86,17 +102,25 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
       ctx.restore();
     });
 
-    if (particlesRef.current.length > 0) {
+    if (progress < 1) {
       animationRef.current = requestAnimationFrame(draw);
     } else {
-      onComplete?.();
+      // Animation complete - only call once
+      if (!completedRef.current) {
+        completedRef.current = true;
+        onComplete?.();
+      }
     }
-  }, [onComplete]);
+  }, [duration, onComplete]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      completedRef.current = false;
+      return;
+    }
 
     setVisible(false);
+    startTimeRef.current = performance.now();
     particlesRef.current = initParticles();
 
     const canvas = canvasRef.current;
@@ -108,7 +132,11 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
 
     animationRef.current = requestAnimationFrame(draw);
 
-    return () => cancelAnimationFrame(animationRef.current);
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
   }, [active, initParticles, draw]);
 
   return (
@@ -116,7 +144,7 @@ export const DisintegrateItem = ({ children, active, onComplete, className = "" 
       <div
         style={{
           opacity: visible ? 1 : 0,
-          transition: "opacity 0.15s ease-out",
+          transition: "opacity 0.1s ease-out",
           pointerEvents: visible ? "auto" : "none",
         }}
       >
