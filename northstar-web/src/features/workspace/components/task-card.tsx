@@ -3,7 +3,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  COLUMN_LABELS,
   type Task,
   type SuggestionType,
 } from "../types/workspace";
@@ -67,6 +66,12 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
   };
 
   const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+  const formattedDate = task.dueDate
+    ? new Date(task.dueDate).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      })
+    : null;
 
   return (
     <Card
@@ -99,47 +104,40 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
         <p className="text-sm font-medium leading-snug">{task.title}</p>
       )}
 
-      <div className="mt-1.5 flex items-center gap-2">
+      <div className="mt-1.5 flex items-center gap-1.5 text-xs">
         <span
           className={cn(
-            "rounded-full border px-1.5 py-0.5 text-[10px] font-medium capitalize",
+            "rounded-full border px-1.5 py-0.5 font-medium",
             PRIORITY_COLORS[task.priority] ?? PRIORITY_COLORS.medium
           )}
         >
           {PRIORITY_LABELS[task.priority] ?? "Med"}
         </span>
-        <span className="text-xs text-muted-foreground">
-          {COLUMN_LABELS[task.status]}
-        </span>
+
+        {task.assigneeName && (
+          <span className="rounded-full bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
+            {initials(task.assigneeName)}
+          </span>
+        )}
+
+        {formattedDate && (
+          <span
+            className={cn(
+              "ml-auto font-medium",
+              isOverdue ? "text-red-500" : "text-muted-foreground"
+            )}
+          >
+            {formattedDate}
+          </span>
+        )}
       </div>
-
-      {task.assigneeName && (
-        <p className="mt-1 text-xs font-medium text-foreground/70">
-          {initials(task.assigneeName)}
-          <span className="ml-1 text-muted-foreground">{task.assigneeName}</span>
-        </p>
-      )}
-
-      {task.dueDate && (
-        <p
-          className={cn(
-            "mt-1 text-xs",
-            isOverdue ? "font-medium text-red-500" : "text-muted-foreground"
-          )}
-        >
-          {isOverdue ? "⚠️ Overdue: " : "📅 "}
-          {new Date(task.dueDate).toLocaleDateString()}
-        </p>
-      )}
 
       {suggestionTypes.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {suggestionTypes.map((t) => (
             <span
               key={t}
-              className={cn(
-                "rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground",
-              )}
+              className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
             >
               {SUGGESTION_BADGE[t]}
             </span>
