@@ -1,7 +1,5 @@
 import { api } from "@/lib/axios";
 
-const AI_KEY_STORAGE = "northstar-ai-key";
-
 export interface AiMessage {
   id: string;
   role: "user" | "assistant";
@@ -22,10 +20,6 @@ export interface AiIntentResponse {
   ok: boolean;
   taskId?: number;
 }
-
-const getStoredKey = (): string | null => {
-  return localStorage.getItem(AI_KEY_STORAGE);
-};
 
 export const executeAiIntent = async (
   projectId: number,

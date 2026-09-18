@@ -131,12 +131,14 @@ export const createTaskHandler = async (
   next: NextFunction,
 ) => {
   try {
-    const { title, description, assigneeId } = req.body;
+    const { title, description, assigneeId, priority, dueDate } = req.body;
     const task = await createTask(
       Number(req.params.id),
       title,
       description,
       assigneeId,
+      priority,
+      dueDate,
     );
     res.status(201).json(task);
   } catch (err) {

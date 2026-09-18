@@ -29,7 +29,10 @@ export const createProject = async (name: string, description?: string) => {
 };
 
 export const getProjects = async () => {
-  const projectList = await db.select().from(projects);
+  const projectList = await db
+    .select()
+    .from(projects)
+    .orderBy(desc(projects.createdAt));
   
   // Get task counts for each project
   const projectsWithCounts = await Promise.all(
@@ -61,10 +64,16 @@ export const updateProject = async (id: number, data: { name?: string; descripti
   return project;
 };
 
-export const updateTask = async (id: number, data: { title?: string; description?: string | null }) => {
+export const updateTask = async (id: number, data: { title?: string; description?: string | null; priority?: string | null; dueDate?: Date | null }) => {
+  const updateData: any = { updatedAt: new Date() };
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.priority !== undefined) updateData.priority = data.priority;
+  if (data.dueDate !== undefined) updateData.dueDate = data.dueDate;
+
   const [task] = await db
     .update(tasks)
-    .set({ ...data, updatedAt: new Date() })
+    .set(updateData)
     .where(eq(tasks.id, id))
     .returning();
   if (!task) throw new Error("Task not found");
@@ -99,6 +108,8 @@ export const createTask = async (
   title: string,
   description?: string,
   assigneeId?: number,
+  priority?: string,
+  dueDate?: string,
 ) => {
   // New tasks always enter `backlog`; enforce that column's WIP cap.
   const limit = wipLimitFor("backlog");
@@ -109,7 +120,7 @@ export const createTask = async (
 
   const [task] = await db
     .insert(tasks)
-    .values({ projectId, title, description, assigneeId, status: "backlog" })
+    .values({ projectId, title, description, assigneeId, priority: (priority ?? "medium") as TaskPriority, dueDate: dueDate ? new Date(dueDate) : null, status: "backlog" })
     .returning();
   return task;
 };
