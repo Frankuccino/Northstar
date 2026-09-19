@@ -230,7 +230,7 @@ export const TaskDetail = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
+      <SheetContent className="w-full overflow-y-auto sm:w-auto">
         <SheetHeader>
           <SheetTitle>{task.title}</SheetTitle>
         </SheetHeader>

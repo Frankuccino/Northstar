@@ -206,14 +206,14 @@ export const ProjectDetailPage = () => {
         }}
       >
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <Button
               variant="outline"
               size="sm"
-              className="gap-1"
+              className="w-fit gap-1"
               onClick={() => navigate("/workspace")}
             >
-              <ChevronLeft />
+              <ChevronLeft className="h-4 w-4" />
               Projects
             </Button>
 
@@ -225,7 +225,7 @@ export const ProjectDetailPage = () => {
                 onClick={() => setAiChatOpen(true)}
               >
                 <Bot className="h-4 w-4" />
-                AI Chat
+                <span className="hidden sm:inline">AI Chat</span>
               </Button>
 
               {canDeleteProject && (
@@ -236,14 +236,14 @@ export const ProjectDetailPage = () => {
                   onClick={() => setSettingsOpen(true)}
                 >
                   <Settings className="h-4 w-4" />
-                  Settings
+                  <span className="hidden sm:inline">Settings</span>
                 </Button>
               )}
             </div>
           </div>
 
         <div>
-          <h1 className="text-2xl font-semibold">{project?.name ?? "Board"}</h1>
+          <h1 className="text-xl font-semibold sm:text-2xl">{project?.name ?? "Board"}</h1>
           {project?.description && (
             <p className="text-sm text-muted-foreground">{project.description}</p>
           )}
@@ -379,7 +379,7 @@ export const ProjectDetailPage = () => {
 
         {/* Settings Sheet */}
         <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <SheetContent>
+          <SheetContent className="w-full overflow-y-auto sm:w-auto">
             <SheetHeader>
               <SheetTitle>Project Settings</SheetTitle>
               <div className="text-sm text-muted-foreground">
@@ -558,7 +558,7 @@ export const ProjectDetailPage = () => {
 
       {/* New Task Dialog */}
       <Dialog open={newTaskOpen} onOpenChange={setNewTaskOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create New Task</DialogTitle>
           </DialogHeader>
@@ -569,7 +569,7 @@ export const ProjectDetailPage = () => {
               if (newTaskTitle.trim()) create.mutate();
             }}
           >
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label htmlFor="new-task-title">Title</Label>
               <Input
                 id="new-task-title"
@@ -579,8 +579,8 @@ export const ProjectDetailPage = () => {
                 required
               />
             </div>
-            <div className="flex gap-4">
-              <div className="flex-1 space-y-1">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="flex-1 space-y-2">
                 <Label>Priority</Label>
                 <Select value={newTaskPriority} onValueChange={(v) => setNewTaskPriority(v as "low" | "medium" | "high" | "urgent")}>
                   <SelectTrigger>
@@ -594,7 +594,7 @@ export const ProjectDetailPage = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex-1 space-y-1">
+              <div className="flex-1 space-y-2">
                 <Label>Due Date</Label>
                 <Input
                   type="date"
