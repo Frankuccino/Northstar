@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ChevronLeft, Settings, Trash2, Bot, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -82,6 +82,11 @@ export const ProjectDetailPage = () => {
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
   const [newLabelName, setNewLabelName] = useState("");
   const [newLabelColor, setNewLabelColor] = useState("#6366f1");
+
+  // Remember last visited workspace for sidebar navigation
+  useEffect(() => {
+    localStorage.setItem("northstar-last-workspace", String(id));
+  }, [id]);
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
