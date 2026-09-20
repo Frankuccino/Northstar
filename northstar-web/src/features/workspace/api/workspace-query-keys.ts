@@ -7,7 +7,7 @@ export const workspaceKeys = {
     [...workspaceKeys.all, "projects", projectId] as const,
   projectTasks: (
     projectId: number,
-    filters?: { status?: TaskStatus; assigneeId?: number | null },
+    filters?: { status?: TaskStatus; assigneeId?: number | null; priority?: string },
   ) =>
     [
       ...workspaceKeys.all,
@@ -15,6 +15,7 @@ export const workspaceKeys = {
       projectId,
       "tasks",
       filters?.status,
+      filters?.priority,
       filters?.assigneeId,
     ] as const,
   taskSuggestions: (taskId: number) =>

@@ -155,6 +155,7 @@ export const listTasksHandler = async (
     const query = listTasksQuerySchema.parse(req.query);
     const tasks = await getTasksByProject(Number(req.params.id), {
       status: query.status,
+      priority: query.priority,
       assigneeId: query.assigneeId ?? undefined,
     });
     res.json(tasks);

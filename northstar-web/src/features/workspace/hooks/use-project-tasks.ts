@@ -5,7 +5,7 @@ import type { TaskStatus } from "../types/workspace";
 
 export const useProjectTasks = (
   projectId: number,
-  filters?: { status?: TaskStatus; assigneeId?: number | null },
+  filters?: { status?: TaskStatus; assigneeId?: number | null; priority?: string },
 ) => {
   return useQuery({
     queryKey: workspaceKeys.projectTasks(projectId, filters),

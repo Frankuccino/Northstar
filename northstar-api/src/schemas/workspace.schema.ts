@@ -84,6 +84,7 @@ export const updateProjectSchema = z.object({
 
 export const listTasksQuerySchema = z.object({
   status: z.enum(TASK_STATUSES).optional(),
+  priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   assigneeId: z.coerce.number().int().positive().nullable().optional(),
 });
 

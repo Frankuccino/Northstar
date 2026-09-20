@@ -130,10 +130,11 @@ export const createTask = async (
 // nullable; the name surfaces on the board card without a second round-trip.
 export const getTasksByProject = async (
   projectId: number,
-  opts?: { status?: TaskStatus; assigneeId?: number | null },
+  opts?: { status?: TaskStatus; assigneeId?: number | null; priority?: string },
 ) => {
   const conditions = [eq(tasks.projectId, projectId)];
   if (opts?.status) conditions.push(eq(tasks.status, opts.status));
+  if (opts?.priority) conditions.push(eq(tasks.priority, opts.priority as "low" | "medium" | "high" | "urgent"));
   if (opts?.assigneeId !== undefined) {
     if (opts.assigneeId === null) conditions.push(sql`${tasks.assigneeId} IS NULL`);
     else conditions.push(eq(tasks.assigneeId, opts.assigneeId));
@@ -152,10 +153,13 @@ export const getTasksByProject = async (
       due_date: tasks.dueDate,
       created_at: tasks.createdAt,
       updated_at: tasks.updatedAt,
+      comment_count: sql<number>`COUNT(DISTINCT ${taskComments.id})::int`,
     })
     .from(tasks)
     .leftJoin(users, eq(tasks.assigneeId, users.id))
-    .where(and(...conditions));
+    .leftJoin(taskComments, eq(taskComments.taskId, tasks.id))
+    .where(and(...conditions))
+    .groupBy(tasks.id, users.name);
 };
 
 // Server-authoritative move. Rejects illegal transitions; the UI cannot

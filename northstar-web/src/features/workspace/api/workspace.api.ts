@@ -101,13 +101,16 @@ export const getProjectTasks = async ({
   projectId,
   status,
   assigneeId,
+  priority,
 }: {
   projectId: number;
   status?: TaskStatus;
   assigneeId?: number | null;
+  priority?: string;
 }): Promise<Task[]> => {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
+  if (priority) params.set("priority", priority);
   if (assigneeId !== undefined)
     params.set("assigneeId", String(assigneeId ?? "null"));
   const qs = params.toString();
