@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ChevronLeft, Settings, Trash2, Bot, Search } from "lucide-react";
+import { ChevronLeft, Settings, Bot, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -254,6 +254,21 @@ export const ProjectDetailPage = () => {
           )}
         </div>
 
+        {/* New Task Button */}
+        <div className="flex justify-end">
+          <Button
+            disabled={backlogFull}
+            onClick={() => setNewTaskOpen(true)}
+          >
+            + New task
+          </Button>
+        </div>
+        {backlogFull && (
+          <p className="text-xs text-amber-500 text-right">
+            Backlog is at its WIP limit ({wipLimitFor("backlog")}). Move or complete a task to add more.
+          </p>
+        )}
+
         {/* Search bar */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -289,24 +304,9 @@ export const ProjectDetailPage = () => {
           )}
         </div>
 
-        {/* New Task Button */}
-        <div className="flex justify-end">
-          <Button
-            disabled={backlogFull}
-            onClick={() => setNewTaskOpen(true)}
-          >
-            + New task
-          </Button>
-        </div>
-        {backlogFull && (
-          <p className="text-xs text-amber-500 text-right">
-            Backlog is at its WIP limit ({wipLimitFor("backlog")}). Move or complete a task to add more.
-          </p>
-        )}
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="w-full space-y-2 sm:w-44">
-            <Label htmlFor="status-filter">Status</Label>
+        {/* Filters - right aligned on desktop */}
+        <div className="flex flex-wrap items-end gap-2 sm:justify-end">
+          <div className="w-36">
             <Select
               value={statusFilter}
               onValueChange={(v) => setStatusFilter(v as TaskStatus)}
@@ -324,8 +324,7 @@ export const ProjectDetailPage = () => {
             </Select>
           </div>
 
-          <div className="w-full space-y-2 sm:w-56">
-            <Label htmlFor="assignee-filter">Assignee</Label>
+          <div className="w-44">
             <Select
               value={assigneeFilter === "" ? "unassigned" : String(assigneeFilter)}
               onValueChange={(v) =>
@@ -350,10 +349,9 @@ export const ProjectDetailPage = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="self-start sm:self-end"
               onClick={clearFilters}
             >
-              Clear filters
+              Clear
             </Button>
           )}
         </div>
@@ -384,148 +382,122 @@ export const ProjectDetailPage = () => {
 
         {/* Settings Sheet */}
         <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <SheetContent className="w-full overflow-y-auto sm:w-auto">
-            <SheetHeader>
-              <SheetTitle>Project Settings</SheetTitle>
-              <div className="text-sm text-muted-foreground">
-                Edit project details or delete this project.
-              </div>
+          <SheetContent className="flex w-full flex-col p-0 sm:w-[480px]">
+            <SheetHeader className="px-4 pb-2 pt-4">
+              <SheetTitle className="pr-8">Project Settings</SheetTitle>
             </SheetHeader>
 
             {project && (
-              <div className="space-y-6">
-                <form
-                  className="space-y-4"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.currentTarget);
-                    updateMutation.mutate(
-                      {
-                        id: project.id,
-                        data: {
-                          name: String(formData.get("name") ?? ""),
-                          description: String(formData.get("description") ?? ""),
+              <div className="flex-1 overflow-y-auto px-4">
+                <div className="space-y-4 py-3">
+                  {/* Edit form */}
+                  <form
+                    className="space-y-4"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      updateMutation.mutate(
+                        {
+                          id: project.id,
+                          data: {
+                            name: String(formData.get("name") ?? ""),
+                            description: String(formData.get("description") ?? ""),
+                          },
                         },
-                      },
-                      {
-                        onSuccess: () => {
-                          setSettingsOpen(false);
+                        {
+                          onSuccess: () => setSettingsOpen(false),
                         },
-                      },
-                    );
-                  }}
-                >
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-name">Name</Label>
-                    <Input
-                      id="edit-name"
-                      name="name"
-                      defaultValue={project.name}
-                      placeholder="Project name"
-                      required
-                    />
+                      );
+                    }}
+                  >
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-name" className="text-xs text-muted-foreground">Name</Label>
+                      <Input
+                        id="edit-name"
+                        name="name"
+                        defaultValue={project.name}
+                        placeholder="Project name"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="edit-description" className="text-xs text-muted-foreground">Description</Label>
+                      <Input
+                        id="edit-description"
+                        name="description"
+                        defaultValue={project.description ?? ""}
+                        placeholder="Optional"
+                      />
+                    </div>
+                    {updateMutation.isError && (
+                      <p className="text-sm text-red-600">
+                        {(updateMutation.error as any)?.response?.data?.error ?? "Failed to update project."}
+                      </p>
+                    )}
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="outline" onClick={() => setSettingsOpen(false)} disabled={updateMutation.isPending}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" disabled={updateMutation.isPending}>
+                        {updateMutation.isPending ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </div>
+                  </form>
+
+                  {/* Labels */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium text-muted-foreground">Labels</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {projectLabels?.map((label: any) => (
+                        <span
+                          key={label.id}
+                          className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                          style={{ backgroundColor: label.color }}
+                        >
+                          {label.name}
+                          <button onClick={() => deleteLabelMut.mutate(label.id)} className="opacity-70 hover:opacity-100">×</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input value={newLabelName} onChange={(e) => setNewLabelName(e.target.value)} placeholder="Label name" className="flex-1" />
+                      <Input type="color" value={newLabelColor} onChange={(e) => setNewLabelColor(e.target.value)} className="w-12 p-1" />
+                      <Button size="sm" disabled={!newLabelName.trim() || createLabelMut.isPending} onClick={() => createLabelMut.mutate()}>
+                        Add
+                      </Button>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label htmlFor="edit-description">Description</Label>
-                    <Input
-                      id="edit-description"
-                      name="description"
-                      defaultValue={project.description ?? ""}
-                      placeholder="Optional"
-                    />
+                  {/* Team */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium text-muted-foreground">Team</h4>
+                    <ProjectTeam project={project} />
                   </div>
 
-                  {updateMutation.isError && (
-                    <p className="text-sm text-red-600">
-                      {(updateMutation.error as any)?.response?.data?.error ??
-                        "Failed to update project."}
-                    </p>
-                  )}
-
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setSettingsOpen(false)}
-                      disabled={updateMutation.isPending}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit" disabled={updateMutation.isPending}>
-                      {updateMutation.isPending ? "Saving..." : "Save Changes"}
-                    </Button>
+                  {/* Invitations */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-medium text-muted-foreground">Invitations</h4>
+                    <InvitationsManager projectId={id} />
                   </div>
-                </form>
+                </div>
 
-                <div className="space-y-2 border-t pt-4">
-                  <h3 className="text-sm font-medium">Danger zone</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Deleting a project removes it and all associated tasks
-                    permanently.
+                {/* Danger zone */}
+                <div className="space-y-2 border-t border-border py-4">
+                  <h4 className="text-xs font-medium text-muted-foreground">Danger zone</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Deleting a project removes it and all associated tasks permanently.
                   </p>
                   <Button
-                    variant="destructive"
+                    variant="ghost"
                     size="sm"
-                    className="gap-1"
+                    className="w-full text-muted-foreground hover:text-destructive"
                     onClick={() => {
                       setSettingsOpen(false);
                       setDeletingProject({ id: project.id, name: project.name });
                     }}
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Delete project
+                    Delete Project
                   </Button>
-                </div>
-
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-medium">Labels</h3>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {projectLabels?.map((label: any) => (
-                      <span
-                        key={label.id}
-                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
-                        style={{ backgroundColor: label.color }}
-                      >
-                        {label.name}
-                        <button
-                          onClick={() => deleteLabelMut.mutate(label.id)}
-                          className="opacity-70 hover:opacity-100"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Input
-                      value={newLabelName}
-                      onChange={(e) => setNewLabelName(e.target.value)}
-                      placeholder="Label name"
-                      className="flex-1"
-                    />
-                    <Input
-                      type="color"
-                      value={newLabelColor}
-                      onChange={(e) => setNewLabelColor(e.target.value)}
-                      className="w-12 p-1"
-                    />
-                    <Button
-                      size="sm"
-                      disabled={!newLabelName.trim() || createLabelMut.isPending}
-                      onClick={() => createLabelMut.mutate()}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <ProjectTeam project={project} />
-                </div>
-
-                <div className="border-t pt-4">
-                  <InvitationsManager projectId={id} />
                 </div>
               </div>
             )}

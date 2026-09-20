@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { TaskCard } from "./task-card";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   DndContext,
   DragOverlay,
   PointerSensor,
@@ -18,6 +23,7 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   BOARD_COLUMNS,
   COLUMN_LABELS,
+  COLUMN_DESCRIPTIONS,
   legalNextStatuses,
   wipLimitFor,
   type Task,
@@ -47,8 +53,7 @@ const BoardColumn = ({
   disintegratingTaskIds,
   allowedTargets,
 }: BoardColumnProps) => {
-  const isAllowed =
-    allowedTargets === null || allowedTargets.has(status);
+  const isAllowed = allowedTargets === null || allowedTargets.has(status);
 
   const cap = wipLimitFor(status);
   const atCap = tasks.length >= cap;
@@ -62,7 +67,14 @@ const BoardColumn = ({
   return (
     <div className="flex w-56 shrink-0 flex-col gap-2 sm:w-64">
       <div className="flex items-center justify-between px-1">
-        <h3 className="text-sm font-semibold">{COLUMN_LABELS[status]}</h3>
+        <Tooltip key="bottom">
+          <TooltipTrigger className="text-sm font-semibold">
+            {COLUMN_LABELS[status]}
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <span>{COLUMN_DESCRIPTIONS[status]}</span>
+          </TooltipContent>
+        </Tooltip>
         <span
           className={`text-xs ${
             atCap ? "font-semibold text-amber-500" : "text-muted-foreground"
@@ -74,7 +86,7 @@ const BoardColumn = ({
       </div>
       <Card
         ref={setNodeRef}
-        className={`flex min-h-32 flex-col gap-2 p-2 transition-colors ${
+        className={`flex min-h-32 flex-col gap-2 border bg-muted/30 p-2 transition-colors ${
           !isDroppable
             ? "opacity-40 grayscale"
             : isOver
@@ -173,9 +185,7 @@ export const Board = ({
     const within = pointerWithin(args);
     if (within.length === 0) return within;
     const enabled = args.droppableContainers.filter((c) => !c.disabled);
-    return within.filter((hit) =>
-      enabled.some((c) => c.id === hit.id),
-    );
+    return within.filter((hit) => enabled.some((c) => c.id === hit.id));
   };
 
   const suggestionByTask = new Map<number, SuggestionType[]>();
@@ -186,11 +196,14 @@ export const Board = ({
   }
 
   const taskById = new Map(displayTasks.map((t) => [t.id, t]));
-  const activeTask = activeId != null ? taskById.get(activeId) ?? null : null;
+  const activeTask = activeId != null ? (taskById.get(activeId) ?? null) : null;
 
   const allowedTargets: Set<TaskStatus> | null =
     activeTask != null
-      ? new Set<TaskStatus>([activeTask.status, ...legalNextStatuses(activeTask.status)])
+      ? new Set<TaskStatus>([
+          activeTask.status,
+          ...legalNextStatuses(activeTask.status),
+        ])
       : null;
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -205,12 +218,14 @@ export const Board = ({
     const moved = taskById.get(Number(active.id));
     if (!moved || !BOARD_COLUMNS.includes(target)) return;
     if (moved.status === target) return;
-    
+
     setLocalTasks((prev) => {
       const base = prev ?? tasks;
-      return base.map((t) => (t.id === moved.id ? { ...t, status: target } : t));
+      return base.map((t) =>
+        t.id === moved.id ? { ...t, status: target } : t,
+      );
     });
-    
+
     onMoveTask(moved, target);
   };
 

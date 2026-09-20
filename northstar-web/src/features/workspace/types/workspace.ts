@@ -40,6 +40,16 @@ export const COLUMN_LABELS: Record<TaskStatus, string> = {
   done: "Done",
 };
 
+export const COLUMN_DESCRIPTIONS: Record<TaskStatus, string> = {
+  backlog: "Tasks waiting to be started. New tasks land here.",
+  ai_drafting: "AI is generating suggestions and content for this task.",
+  ready: "Task has been drafted and is ready to be worked on.",
+  in_progress: "Currently being worked on by a team member.",
+  needs_revision: "Reviewed and requires changes before it can proceed.",
+  validated: "Approved and ready for final commit.",
+  done: "Completed and committed.",
+};
+
 // Frontend mirror of the backend WIP policy (northstar-api/src/services/
 // workspace/state-machine.ts). Used only to *display* the cap and grey out a
 // column that is full; the server remains authoritative on enforcement.

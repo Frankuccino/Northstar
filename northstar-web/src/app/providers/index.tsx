@@ -1,3 +1,4 @@
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryProvider } from "./query-provider";
 import { RouterProviderWrapper } from "./router-provider";
 import { ThemeProvider } from "@/features/theme/theme-context";
@@ -12,8 +13,10 @@ export const AppProvider = ({ children }: Props) => {
     <ThemeProvider>
       <ToastProvider>
         <QueryProvider>
-          <RouterProviderWrapper />
-          {children}
+          <TooltipProvider>
+            <RouterProviderWrapper />
+            {children}
+          </TooltipProvider>
         </QueryProvider>
       </ToastProvider>
     </ThemeProvider>
