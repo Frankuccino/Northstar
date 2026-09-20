@@ -39,8 +39,6 @@ interface BoardColumnProps {
   onOpenTask: (task: Task) => void;
   onUpdateTask?: (task: Task, title: string) => void;
   disintegratingTaskIds: Set<number>;
-  // While a card is being dragged, only legal drop targets should accept it.
-  // `allowedTargets` is null when no drag is in progress (all columns normal).
   allowedTargets: Set<TaskStatus> | null;
 }
 
@@ -65,13 +63,13 @@ const BoardColumn = ({
   });
 
   return (
-    <div className="flex w-56 shrink-0 flex-col gap-2 sm:w-64">
+    <div className="flex flex-1 min-w-0 flex-col gap-2">
       <div className="flex items-center justify-between px-1">
-        <Tooltip key="bottom">
+        <Tooltip>
           <TooltipTrigger className="text-sm font-semibold">
             {COLUMN_LABELS[status]}
           </TooltipTrigger>
-          <TooltipContent side="top">
+          <TooltipContent side="bottom">
             <span>{COLUMN_DESCRIPTIONS[status]}</span>
           </TooltipContent>
         </Tooltip>
@@ -159,6 +157,7 @@ interface BoardProps {
   onMoveTask: (task: Task, status: TaskStatus) => void;
   onUpdateTask?: (task: Task, title: string) => void;
   disintegratingTaskIds: Set<number>;
+  visibleColumns?: Set<TaskStatus>;
 }
 
 export const Board = ({
@@ -168,6 +167,7 @@ export const Board = ({
   onMoveTask,
   onUpdateTask,
   disintegratingTaskIds,
+  visibleColumns,
 }: BoardProps) => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [localTasks, setLocalTasks] = useState<Task[] | null>(null);
@@ -196,7 +196,7 @@ export const Board = ({
   }
 
   const taskById = new Map(displayTasks.map((t) => [t.id, t]));
-  const activeTask = activeId != null ? (taskById.get(activeId) ?? null) : null;
+  const activeTask = activeId != null ? taskById.get(activeId) ?? null : null;
 
   const allowedTargets: Set<TaskStatus> | null =
     activeTask != null
@@ -237,18 +237,20 @@ export const Board = ({
       onDragEnd={handleDragEnd}
     >
       <div className="flex gap-3 overflow-x-auto pb-4 sm:gap-4">
-        {BOARD_COLUMNS.map((status) => (
-          <BoardColumn
-            key={status}
-            status={status}
-            tasks={displayTasks.filter((t) => t.status === status)}
-            suggestionByTask={suggestionByTask}
-            onOpenTask={onOpenTask}
-            onUpdateTask={onUpdateTask}
-            disintegratingTaskIds={disintegratingTaskIds}
-            allowedTargets={allowedTargets}
-          />
-        ))}
+        {BOARD_COLUMNS.filter((status) => visibleColumns?.has(status) ?? true).map(
+          (status) => (
+            <BoardColumn
+              key={status}
+              status={status}
+              tasks={displayTasks.filter((t) => t.status === status)}
+              suggestionByTask={suggestionByTask}
+              onOpenTask={onOpenTask}
+              onUpdateTask={onUpdateTask}
+              disintegratingTaskIds={disintegratingTaskIds}
+              allowedTargets={allowedTargets}
+            />
+          ),
+        )}
       </div>
 
       <DragOverlay>
