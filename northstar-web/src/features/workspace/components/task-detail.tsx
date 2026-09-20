@@ -85,6 +85,14 @@ const Hint = ({ children }: { children: React.ReactNode }) => (
   <p className="text-xs text-muted-foreground">{children}</p>
 );
 
+function getDaysBetween(from: string, to: string): number {
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  fromDate.setHours(0, 0, 0, 0);
+  toDate.setHours(0, 0, 0, 0);
+  return Math.round((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 export const TaskDetail = ({
   task,
   projectId,
@@ -236,20 +244,26 @@ export const TaskDetail = ({
       <SheetContent className="flex w-full flex-col p-0 sm:w-[480px]">
         <SheetHeader className="px-4 pb-3 pt-4">
           <SheetTitle className="pr-8">{task.title}</SheetTitle>
-          <div className="flex items-center gap-2 pt-1">
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+            <span className="rounded-full bg-muted px-2 py-0.5 font-medium">
               {COLUMN_LABELS[task.status]}
             </span>
             {dueDateDisplay && (
-              <span className={`text-xs font-medium ${
+              <span className={`font-medium ${
                 dueDateDisplay.tone === "overdue" ? "text-red-500" :
                 dueDateDisplay.tone === "warning" ? "text-amber-500" :
-                "text-muted-foreground"
+                ""
               }`}>{dueDateDisplay.label}</span>
             )}
             {task.assigneeName && (
-              <span className="text-sm text-muted-foreground">{task.assigneeName}</span>
+              <span>{task.assigneeName}</span>
             )}
+            <span className="ml-auto flex items-center gap-2">
+              <span>Created {new Date(task.createdAt).toLocaleDateString()}</span>
+              {task.dueDate && (
+                <span>· {getDaysBetween(task.createdAt, task.dueDate)}d</span>
+              )}
+            </span>
           </div>
         </SheetHeader>
 
