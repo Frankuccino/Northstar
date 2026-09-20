@@ -93,6 +93,7 @@ export interface Task {
   dueDate: string | null;
   createdAt: string;
   updatedAt: string;
+  commentCount?: number;
 }
 
 export interface AiSuggestion {
