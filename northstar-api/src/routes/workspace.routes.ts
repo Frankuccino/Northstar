@@ -46,6 +46,7 @@ import {
   listAiActionsHandler,
   registerAiClientHandler,
   aiChatHandler,
+  getMyInvitationsHandler,
   getLabelsHandler,
   createLabelHandler,
   deleteLabelHandler,
@@ -174,6 +175,11 @@ router.post(
   "/invitations/accept",
   authenticate,
   acceptInvitationHandler,
+);
+router.get(
+  "/invitations/my",
+  authenticate,
+  getMyInvitationsHandler,
 );
 
 // AI

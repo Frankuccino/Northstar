@@ -203,3 +203,23 @@ export const revokeInvitation = async (
 
   return updated;
 };
+
+export const getMyInvitations = async (userId: number) => {
+  return db
+    .select({
+      id: invitations.id,
+      email: invitations.email,
+      status: invitations.status,
+      expiresAt: invitations.expiresAt,
+      acceptedAt: invitations.acceptedAt,
+      createdAt: invitations.createdAt,
+      invitedByName: users.name,
+      projectId: invitations.projectId,
+      projectName: projects.name,
+    })
+    .from(invitations)
+    .leftJoin(users, eq(invitations.invitedById, users.id))
+    .leftJoin(projects, eq(invitations.projectId, projects.id))
+    .where(eq(invitations.invitedById, userId))
+    .orderBy(desc(invitations.createdAt));
+};

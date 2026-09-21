@@ -336,6 +336,23 @@ export const revokeInvitation = async (
   return res.data;
 };
 
+export const getMyInvitations = async (): Promise<
+  {
+    id: number;
+    email: string;
+    status: string;
+    expiresAt: string;
+    acceptedAt: string | null;
+    createdAt: string;
+    invitedByName: string | null;
+    projectId: number;
+    projectName: string;
+  }[]
+> => {
+  const res = await api.get("/workspace/invitations/my");
+  return res.data;
+};
+
 export const acceptInvitation = async (
   rawToken: string,
 ): Promise<{ id: number; status: string }> => {

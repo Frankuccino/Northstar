@@ -4,6 +4,7 @@ import {
   ShieldCheck,
   Settings,
   FolderKanban,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@/types/role";
@@ -21,6 +22,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Workspace", to: "/workspace", icon: FolderKanban },
+  { label: "Invitations", to: "/invitations", icon: Mail },
   { label: "Employees", to: "/employees", icon: Users },
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Admin", to: "/admin", icon: ShieldCheck, roles: ["admin"] },

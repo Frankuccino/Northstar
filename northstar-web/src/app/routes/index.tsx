@@ -11,6 +11,7 @@ import { PlaceholderPage } from "@/features/layout/components/placeholder-page";
 import { ProjectsPage } from "@/features/workspace/pages/projects-page";
 import { ProjectDetailPage } from "@/features/workspace/pages/project-detail-page";
 import { AcceptInvitationPage } from "@/features/workspace/pages/accept-invitation-page";
+import { InvitationsPage } from "@/features/workspace/pages/invitations-page";
 
 export const router = createBrowserRouter([
   {
@@ -65,6 +66,10 @@ export const router = createBrowserRouter([
           {
             path: "/workspace/:projectId",
             element: <ProjectDetailPage />,
+          },
+          {
+            path: "/invitations",
+            element: <InvitationsPage />,
           },
           {
             path: "/admin",

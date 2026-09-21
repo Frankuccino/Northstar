@@ -36,6 +36,7 @@ import {
   getProjectInvitations,
   acceptInvitation,
   revokeInvitation,
+  getMyInvitations,
 } from "../services/invitation.service.js";
 import {
   verifyAiClient,
@@ -355,6 +356,20 @@ export const listProjectInvitationsHandler = async (
       query.statuses ?? undefined,
     );
     res.json(invitationsList);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getMyInvitationsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = (req as any).user?.id;
+    const invitations = await getMyInvitations(userId);
+    res.json(invitations);
   } catch (err) {
     next(err);
   }
