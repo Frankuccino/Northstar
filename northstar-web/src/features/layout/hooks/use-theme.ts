@@ -1,30 +1,32 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useContext } from "react";
+import { ThemeContext } from "@/features/theme/theme-context";
 
-type Theme = "light" | "dark";
-
-const STORAGE_KEY = "northstar-theme";
-
-const getInitialTheme = (): Theme => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark") return stored;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
-};
-
-// Single source of truth for theme. Applies the `.dark` class to <html> (the
-// CSS @custom-variant already keys off it) and persists the choice.
+// Single source of truth for theme. Uses ThemeContext which provides
+// both color themes and dark mode support.
 export const useTheme = () => {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error("useTheme must be used within ThemeProvider");
+  }
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+  const { theme, themeName, setTheme, themes } = context;
 
   const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === "dark" ? "light" : "dark"));
-  }, []);
+    // Toggle between current theme and dark
+    if (themeName === "dark") {
+      // Switch back to rose (default light theme)
+      setTheme("rose");
+    } else {
+      setTheme("dark");
+    }
+  }, [themeName, setTheme]);
 
-  return { theme, toggleTheme };
+  return {
+    theme,
+    themeName,
+    setTheme,
+    themes,
+    toggleTheme,
+    isDark: themeName === "dark",
+  };
 };

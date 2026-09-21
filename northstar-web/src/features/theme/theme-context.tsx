@@ -202,7 +202,7 @@ interface ThemeContextType {
   themes: Record<ThemeName, Theme>;
 }
 
-const ThemeContext = createContext<ThemeContextType | null>(null);
+export const ThemeContext = createContext<ThemeContextType | null>(null);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [themeName, setThemeName] = useState<ThemeName>(() => {

@@ -4,18 +4,18 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "../hooks/use-theme";
 
 export const ThemeToggle = () => {
-  const { theme, toggleTheme } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
 
   return (
     <Button
       variant="ghost"
       size="icon"
       aria-label={
-        theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
+        isDark ? "Switch to light mode" : "Switch to dark mode"
       }
       onClick={toggleTheme}
     >
-      {theme === "dark" ? (
+      {isDark ? (
         <Sun className="size-4" />
       ) : (
         <Moon className="size-4" />
