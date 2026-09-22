@@ -3,10 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/features/theme/theme-context";
-import {
-  type Task,
-  type SuggestionType,
-} from "../types/workspace";
+import { type Task, type SuggestionType } from "../types/workspace";
 
 const SUGGESTION_BADGE: Record<SuggestionType, string> = {
   context: "Context",
@@ -85,7 +82,12 @@ interface TaskCardProps {
   onUpdate?: (task: Task, title: string) => void;
 }
 
-export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardProps) => {
+export const TaskCard = ({
+  task,
+  suggestionTypes,
+  onOpen,
+  onUpdate,
+}: TaskCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const { theme } = useTheme();
@@ -133,7 +135,7 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
         e.stopPropagation();
         setIsEditing(true);
       }}
-      className="group/card flex h-28 cursor-pointer flex-col justify-between p-2 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="group/card flex h-28 cursor-pointer flex-col justify-between p-3.5 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       {isEditing ? (
         <Input
@@ -147,7 +149,9 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
         />
       ) : (
         <div className="flex items-start justify-between gap-2">
-          <p className="line-clamp-2 min-w-0 text-sm font-medium leading-snug">{task.title}</p>
+          <p className="line-clamp-2 min-w-0 text-sm font-medium leading-snug">
+            {task.title}
+          </p>
           <span
             className="shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] font-medium"
             style={priorityStyle}
@@ -174,7 +178,7 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
             <span
               className={cn(
                 "font-medium",
-                isOverdue ? "text-red-500" : "text-muted-foreground"
+                isOverdue ? "text-red-500" : "text-muted-foreground",
               )}
             >
               {formattedDate}
@@ -182,7 +186,19 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
           )}
           {(task.commentCount ?? 0) > 0 && (
             <span className="flex items-center gap-0.5 text-muted-foreground">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
               {task.commentCount}
             </span>
           )}

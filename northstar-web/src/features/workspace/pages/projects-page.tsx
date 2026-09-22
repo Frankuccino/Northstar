@@ -50,30 +50,42 @@ export const ProjectsPage = () => {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDesc, setNewProjectDesc] = useState("");
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [disintegratingProjectId, setDisintegratingProjectId] = useState<number | null>(null);
+  const [disintegratingProjectId, setDisintegratingProjectId] = useState<
+    number | null
+  >(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const deleteProjectMutation = useDeleteProject();
 
   const { toast } = useToast();
 
-  const filteredProjects = data?.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  ) ?? [];
+  const filteredProjects =
+    data?.filter((p) =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    ) ?? [];
 
   if (isLoading) return <p>Loading projects…</p>;
   if (error) return <p>Failed to load projects.</p>;
 
   const handleCreateProject = () => {
     if (newProjectName.trim()) {
-      createProject({ name: newProjectName.trim(), description: newProjectDesc || undefined }).then(() => {
-        setNewProjectName("");
-        setNewProjectDesc("");
-        setNewProjectOpen(false);
-        queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
-        toast({ type: "success", title: "Project created" });
-      }).catch((err: any) => {
-        toast({ type: "error", title: "Failed to create project", description: err?.response?.data?.error });
-      });
+      createProject({
+        name: newProjectName.trim(),
+        description: newProjectDesc || undefined,
+      })
+        .then(() => {
+          setNewProjectName("");
+          setNewProjectDesc("");
+          setNewProjectOpen(false);
+          queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
+          toast({ type: "success", title: "Project created" });
+        })
+        .catch((err: any) => {
+          toast({
+            type: "error",
+            title: "Failed to create project",
+            description: err?.response?.data?.error,
+          });
+        });
     }
   };
 
@@ -118,7 +130,9 @@ export const ProjectsPage = () => {
                 setDisintegratingProjectId(null);
                 deleteProjectMutation.mutate(project.id, {
                   onSuccess: () => {
-                    queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
+                    queryClient.invalidateQueries({
+                      queryKey: workspaceKeys.projects(),
+                    });
                   },
                 });
               }}
@@ -133,17 +147,20 @@ export const ProjectsPage = () => {
                     />
                   </div>
                 )}
-                <CardContent className="flex h-full flex-col justify-between p-2">
+                <CardContent className="flex h-full flex-col justify-between">
                   <div
                     className="flex flex-col cursor-pointer"
                     onClick={() => navigate(`/workspace/${project.id}`)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") navigate(`/workspace/${project.id}`);
+                      if (e.key === "Enter")
+                        navigate(`/workspace/${project.id}`);
                     }}
                     role="button"
                     tabIndex={0}
                   >
-                    <h3 className="font-medium line-clamp-1 text-sm">{project.name}</h3>
+                    <h3 className="font-medium line-clamp-1 text-sm">
+                      {project.name}
+                    </h3>
                     {project.description ? (
                       <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
                         {project.description}
@@ -153,21 +170,21 @@ export const ProjectsPage = () => {
                         No description
                       </p>
                     )}
-                    <div className="flex items-center justify-between pt-1.5 mt-auto border-t border-border">
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span className="flex items-center gap-0.5">
-                          <LayoutGrid className="h-3 w-3" />
-                          {project.taskCount ?? 0}
-                        </span>
-                        <span className="flex items-center gap-0.5">
-                          <Users className="h-3 w-3" />
-                          {project.memberCount ?? 0}
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-muted-foreground">
-                        {getRelativeTime(project.createdAt)}
+                  </div>
+                  <div className="flex items-center justify-between pt-1.5 mt-2 border-t border-border">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <span className="flex items-center gap-0.5">
+                        <LayoutGrid className="h-3 w-3" />
+                        {project.taskCount ?? 0}
+                      </span>
+                      <span className="flex items-center gap-0.5">
+                        <Users className="h-3 w-3" />
+                        {project.memberCount ?? 0}
                       </span>
                     </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      {getRelativeTime(project.createdAt)}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -209,7 +226,11 @@ export const ProjectsPage = () => {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setNewProjectOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setNewProjectOpen(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={!newProjectName.trim()}>
