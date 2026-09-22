@@ -133,7 +133,7 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
         e.stopPropagation();
         setIsEditing(true);
       }}
-      className="group/card flex h-28 cursor-pointer flex-col p-2 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      className="group/card flex h-28 cursor-pointer flex-col justify-between p-2 hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       {isEditing ? (
         <Input
@@ -157,7 +157,7 @@ export const TaskCard = ({ task, suggestionTypes, onOpen, onUpdate }: TaskCardPr
         </div>
       )}
 
-      <div className="mt-1.5 flex items-center justify-between text-xs">
+      <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5">
           {task.assigneeName ? (
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary ring-1 ring-primary/20">
