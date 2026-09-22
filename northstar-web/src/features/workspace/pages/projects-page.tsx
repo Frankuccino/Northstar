@@ -16,6 +16,13 @@ import { useDeleteProject } from "../hooks/use-delete-project";
 import { ConfirmDeleteDialog } from "../components/confirm-delete-dialog";
 import { useToast } from "@/features/theme/toast";
 import type { Project } from "../types/workspace";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 function getRelativeTime(date: string): string {
   if (!date) return "—";
@@ -39,6 +46,9 @@ export const ProjectsPage = () => {
   const isAdmin = currentUser?.role === "admin";
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDesc, setNewProjectDesc] = useState("");
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [disintegratingProjectId, setDisintegratingProjectId] = useState<number | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
@@ -54,9 +64,11 @@ export const ProjectsPage = () => {
   if (error) return <p>Failed to load projects.</p>;
 
   const handleCreateProject = () => {
-    const name = prompt("Project name:");
-    if (name?.trim()) {
-      createProject({ name: name.trim() }).then(() => {
+    if (newProjectName.trim()) {
+      createProject({ name: newProjectName.trim(), description: newProjectDesc || undefined }).then(() => {
+        setNewProjectName("");
+        setNewProjectDesc("");
+        setNewProjectOpen(false);
         queryClient.invalidateQueries({ queryKey: workspaceKeys.projects() });
         toast({ type: "success", title: "Project created" });
       }).catch((err: any) => {
@@ -66,16 +78,9 @@ export const ProjectsPage = () => {
   };
 
   return (
-    <div className="space-y-3">
-      <div>
-        <h1 className="text-xl font-semibold">Projects</h1>
-        <p className="text-sm text-muted-foreground">
-          AI-assisted Kanban workspaces.
-        </p>
-      </div>
-
+    <div className="space-y-4">
       <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-        <Button onClick={handleCreateProject} size="sm">
+        <Button onClick={() => setNewProjectOpen(true)} size="sm">
           <Plus className="h-4 w-4" />
           New project
         </Button>
@@ -90,13 +95,14 @@ export const ProjectsPage = () => {
         </div>
       </div>
 
+      {/* Projects Grid */}
       {filteredProjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8 text-muted-foreground">
           <LayoutGrid className="h-8 w-8 opacity-50" />
           <p className="mt-2 text-sm">No projects found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project) => (
             <DisintegrateItem
               key={project.id}
@@ -110,7 +116,7 @@ export const ProjectsPage = () => {
                 });
               }}
             >
-              <Card className="group relative hover:border-primary/60 transition-colors" size="sm">
+              <Card className="group relative hover:border-primary/60 transition-colors">
                 {isAdmin && (
                   <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 z-10">
                     <ProjectRowActions
@@ -140,7 +146,7 @@ export const ProjectsPage = () => {
                         No description
                       </p>
                     )}
-                    <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-border">
+                    <div className="flex items-center justify-between pt-1.5 mt-auto border-t border-border">
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <span className="flex items-center gap-0.5">
                           <LayoutGrid className="h-3 w-3" />
@@ -162,6 +168,50 @@ export const ProjectsPage = () => {
           ))}
         </div>
       )}
+
+      {/* New Project Dialog */}
+      <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Project</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newProjectName.trim()) handleCreateProject();
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="project-name">Name</Label>
+              <Input
+                id="project-name"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Project name"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-desc">Description</Label>
+              <Input
+                id="project-desc"
+                value={newProjectDesc}
+                onChange={(e) => setNewProjectDesc(e.target.value)}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setNewProjectOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!newProjectName.trim()}>
+                Create
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <EditProjectDialog
         open={!!editingProject}
