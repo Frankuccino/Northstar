@@ -280,7 +280,10 @@ export const ProjectDetailPage = () => {
               variant="outline"
               size="sm"
               className="w-fit gap-1"
-              onClick={() => navigate("/workspace")}
+              onClick={() => {
+                localStorage.removeItem("northstar-last-workspace");
+                navigate("/workspace");
+              }}
             >
               <ChevronLeft className="h-4 w-4" />
               Projects

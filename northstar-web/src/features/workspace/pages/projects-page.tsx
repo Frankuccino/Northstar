@@ -79,6 +79,13 @@ export const ProjectsPage = () => {
 
   return (
     <div className="space-y-4">
+      <div>
+        <h1 className="text-xl font-semibold sm:text-2xl">Projects</h1>
+        <p className="text-sm text-muted-foreground">
+          AI-assisted Kanban workspaces.
+        </p>
+      </div>
+
       <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
         <Button onClick={() => setNewProjectOpen(true)} size="sm">
           <Plus className="h-4 w-4" />
@@ -126,9 +133,9 @@ export const ProjectsPage = () => {
                     />
                   </div>
                 )}
-                <CardContent className="p-2">
+                <CardContent className="flex h-full flex-col justify-between p-2">
                   <div
-                    className="flex h-full flex-col cursor-pointer"
+                    className="flex flex-col cursor-pointer"
                     onClick={() => navigate(`/workspace/${project.id}`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") navigate(`/workspace/${project.id}`);
