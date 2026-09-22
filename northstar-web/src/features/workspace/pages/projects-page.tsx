@@ -96,7 +96,7 @@ export const ProjectsPage = () => {
           <p className="mt-2 text-sm">No projects found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProjects.map((project) => (
             <DisintegrateItem
               key={project.id}
@@ -110,7 +110,7 @@ export const ProjectsPage = () => {
                 });
               }}
             >
-              <Card className="group relative hover:border-primary/60 transition-colors">
+              <Card className="group relative hover:border-primary/60 transition-colors" size="sm">
                 {isAdmin && (
                   <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 z-10">
                     <ProjectRowActions
