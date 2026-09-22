@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Users, LayoutGrid, Clock, Search } from "lucide-react";
+import { Plus, Users, LayoutGrid, Search } from "lucide-react";
 import { useProjects } from "../hooks/use-projects";
 import { useCurrentUser } from "../../auth/hooks/use-current-user";
 import { createProject } from "../api/workspace.api";
@@ -18,9 +18,11 @@ import { useToast } from "@/features/theme/toast";
 import type { Project } from "../types/workspace";
 
 function getRelativeTime(date: string): string {
+  if (!date) return "—";
   const now = new Date();
   const then = new Date(date);
   const diffMs = now.getTime() - then.getTime();
+  if (diffMs < 0) return "Just now";
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
@@ -65,7 +67,13 @@ export const ProjectsPage = () => {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar: Create | Search */}
+      <div>
+        <h1 className="text-xl font-semibold">Projects</h1>
+        <p className="text-sm text-muted-foreground">
+          AI-assisted Kanban workspaces.
+        </p>
+      </div>
+
       <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
         <Button onClick={handleCreateProject} size="sm">
           <Plus className="h-4 w-4" />
@@ -82,9 +90,8 @@ export const ProjectsPage = () => {
         </div>
       </div>
 
-      {/* Projects Grid */}
       {filteredProjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-8 text-muted-foreground">
           <LayoutGrid className="h-8 w-8 opacity-50" />
           <p className="mt-2 text-sm">No projects found</p>
         </div>
@@ -103,7 +110,7 @@ export const ProjectsPage = () => {
                 });
               }}
             >
-              <Card className="group relative h-full hover:border-primary/60 transition-colors">
+              <Card className="group relative hover:border-primary/60 transition-colors">
                 {isAdmin && (
                   <div className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100 z-10">
                     <ProjectRowActions
@@ -115,7 +122,7 @@ export const ProjectsPage = () => {
                 )}
                 <CardContent className="p-3">
                   <div
-                    className="flex flex-col h-full cursor-pointer"
+                    className="flex flex-col cursor-pointer"
                     onClick={() => navigate(`/workspace/${project.id}`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") navigate(`/workspace/${project.id}`);
@@ -125,28 +132,27 @@ export const ProjectsPage = () => {
                   >
                     <h3 className="font-medium line-clamp-1">{project.name}</h3>
                     {project.description ? (
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2 flex-1">
+                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                         {project.description}
                       </p>
                     ) : (
-                      <p className="mt-1 text-sm italic text-muted-foreground/60 flex-1">
+                      <p className="mt-1 text-sm italic text-muted-foreground/60">
                         No description
                       </p>
                     )}
                     <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-0.5">
                           <LayoutGrid className="h-3 w-3" />
                           {project.taskCount ?? 0}
                         </span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-0.5">
                           <Users className="h-3 w-3" />
                           {project.memberCount ?? 0}
                         </span>
                       </div>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {getRelativeTime(project.updatedAt)}
+                      <span className="text-xs text-muted-foreground">
+                        {getRelativeTime(project.createdAt)}
                       </span>
                     </div>
                   </div>
