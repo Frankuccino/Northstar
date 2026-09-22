@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Users, LayoutGrid, Clock, Search } from "lucide-react";
@@ -64,31 +65,26 @@ export const ProjectsPage = () => {
 
   return (
     <div className="space-y-4">
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search projects..."
-          className="pl-9"
-        />
-      </div>
-
-      {/* Create project - clickable card */}
-      <Card
-        className="cursor-pointer border-dashed hover:border-primary/60 hover:bg-primary/5 transition-colors"
-        onClick={handleCreateProject}
-      >
-        <CardContent className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+      {/* Toolbar: Create | Search */}
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+        <Button onClick={handleCreateProject} size="sm">
           <Plus className="h-4 w-4" />
-          <span className="text-sm font-medium">Create new project</span>
-        </CardContent>
-      </Card>
+          New project
+        </Button>
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search projects..."
+            className="pl-9"
+          />
+        </div>
+      </div>
 
       {/* Projects Grid */}
       {filteredProjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-muted-foreground">
           <LayoutGrid className="h-8 w-8 opacity-50" />
           <p className="mt-2 text-sm">No projects found</p>
         </div>
@@ -117,9 +113,9 @@ export const ProjectsPage = () => {
                     />
                   </div>
                 )}
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div
-                    className="flex flex-col h-full cursor-pointer min-h-[100px]"
+                    className="flex flex-col h-full cursor-pointer"
                     onClick={() => navigate(`/workspace/${project.id}`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") navigate(`/workspace/${project.id}`);
@@ -137,7 +133,7 @@ export const ProjectsPage = () => {
                         No description
                       </p>
                     )}
-                    <div className="flex items-center justify-between pt-3 mt-auto border-t border-border">
+                    <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <LayoutGrid className="h-3 w-3" />
