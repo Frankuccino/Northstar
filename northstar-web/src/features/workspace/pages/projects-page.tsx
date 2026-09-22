@@ -66,7 +66,7 @@ export const ProjectsPage = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
         <h1 className="text-xl font-semibold">Projects</h1>
         <p className="text-sm text-muted-foreground">
@@ -120,7 +120,7 @@ export const ProjectsPage = () => {
                     />
                   </div>
                 )}
-                <CardContent className="p-3">
+                <CardContent className="p-2">
                   <div
                     className="flex flex-col cursor-pointer"
                     onClick={() => navigate(`/workspace/${project.id}`)}
@@ -130,18 +130,18 @@ export const ProjectsPage = () => {
                     role="button"
                     tabIndex={0}
                   >
-                    <h3 className="font-medium line-clamp-1">{project.name}</h3>
+                    <h3 className="font-medium line-clamp-1 text-sm">{project.name}</h3>
                     {project.description ? (
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
                         {project.description}
                       </p>
                     ) : (
-                      <p className="mt-1 text-sm italic text-muted-foreground/60">
+                      <p className="mt-0.5 text-xs italic text-muted-foreground/60">
                         No description
                       </p>
                     )}
-                    <div className="flex items-center justify-between pt-2 mt-2 border-t border-border">
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between pt-1.5 mt-1.5 border-t border-border">
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <span className="flex items-center gap-0.5">
                           <LayoutGrid className="h-3 w-3" />
                           {project.taskCount ?? 0}
@@ -151,7 +151,7 @@ export const ProjectsPage = () => {
                           {project.memberCount ?? 0}
                         </span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[11px] text-muted-foreground">
                         {getRelativeTime(project.createdAt)}
                       </span>
                     </div>
