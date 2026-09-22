@@ -122,7 +122,7 @@ export const ProjectsPage = () => {
                 )}
                 <CardContent className="p-2">
                   <div
-                    className="flex flex-col cursor-pointer"
+                    className="flex h-full flex-col justify-between cursor-pointer"
                     onClick={() => navigate(`/workspace/${project.id}`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") navigate(`/workspace/${project.id}`);
