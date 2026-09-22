@@ -79,6 +79,7 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   taskCount?: number;
+  memberCount?: number;
 }
 
 export interface Task {

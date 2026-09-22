@@ -34,14 +34,22 @@ export const getProjects = async () => {
     .from(projects)
     .orderBy(desc(projects.createdAt));
   
-  // Get task counts for each project
+  // Get task counts and member counts for each project
   const projectsWithCounts = await Promise.all(
     projectList.map(async (project) => {
-      const [result] = await db
+      const [taskResult] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(tasks)
         .where(eq(tasks.projectId, project.id));
-      return { ...project, taskCount: result?.count ?? 0 };
+      const [memberResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(projectMembers)
+        .where(eq(projectMembers.projectId, project.id));
+      return { 
+        ...project, 
+        taskCount: taskResult?.count ?? 0,
+        memberCount: memberResult?.count ?? 0,
+      };
     }),
   );
   
