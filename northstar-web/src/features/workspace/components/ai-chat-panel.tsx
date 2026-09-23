@@ -1,11 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Send, Bot, User, Loader2, CheckCircle2, X, Trash2 } from "lucide-react";
+import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { aiChat } from "../api/ai.api";
 import { type AiMessage } from "../api/ai.api";
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+type DockPosition = "right" | "left" | "bottom" | "top" | "floating";
 
 interface AiChatPanelProps {
   open: boolean;
@@ -19,11 +24,52 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [dockPosition, setDockPosition] = useState<DockPosition>("right");
+  const [floatingPos, setFloatingPos] = useState<Position>({ x: 100, y: 100 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
+  const dragStartPos = useRef<Position>({ x: 0, y: 0 });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (dockPosition !== "floating") return;
+    setIsDragging(true);
+    dragStartPos.current = {
+      x: e.clientX - floatingPos.x,
+      y: e.clientY - floatingPos.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setFloatingPos({
+        x: e.clientX - dragStartPos.current.x,
+        y: e.clientY - dragStartPos.current.y,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging]);
+
+  const handleDockToggle = (position: DockPosition) => {
+    setDockPosition(position);
+  };
 
   const addAssistantMessage = (content: string, action?: { type: string; result: string }) => {
     const msg: AiMessage = {
@@ -84,15 +130,27 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     }
 
     setIsLoading(true);
+
     try {
-      const res = await aiChat(id, userInput);
+      const res = await fetch(`/workspace/projects/${id}/ai/intent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userInput }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error ?? "Failed to get AI response");
+      }
+
+      const data = await res.json();
 
       addAssistantMessage(
-        res.content || res.message,
-        { type: res.intent, result: res.executed ? "success" : "error" }
+        data.content,
+        { type: data.intent, result: data.intent !== "unknown" ? "success" : "error" }
       );
 
-      if (res.executed) {
+      if (data.intent !== "unknown") {
         onTasksChanged();
       }
     } catch (err: any) {
@@ -112,122 +170,210 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     }
   };
 
+  if (!open) return null;
+
+  const getDockStyles = () => {
+    switch (dockPosition) {
+      case "right":
+        return "inset-y-0 right-0 w-full sm:w-96 border-l";
+      case "left":
+        return "inset-y-0 left-0 w-full sm:w-96 border-r";
+      case "bottom":
+        return "inset-x-0 bottom-0 h-[400px] border-t";
+      case "top":
+        return "inset-x-0 top-0 h-[400px] border-b";
+      case "floating":
+        return "absolute h-[450px] w-[380px] shadow-2xl ring-1 ring-border/50 rounded-xl overflow-hidden";
+      default:
+        return "";
+    }
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col p-0 sm:w-[480px]">
-        <SheetHeader className="px-4 pb-3 pt-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                <Bot className="h-4 w-4 text-primary" />
-              </div>
-              <SheetTitle>AI Assistant</SheetTitle>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon-sm" onClick={() => setMessages([])} title="Clear">
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon-sm" onClick={() => onOpenChange(false)} title="Close">
-                <X className="h-3.5 w-3.5" />
-              </Button>
+    <div
+      ref={dragRef}
+      className={`z-50 flex flex-col bg-background ${getDockStyles()} ${
+        dockPosition === "floating" ? "" : "fixed"
+      } ${isDragging ? "cursor-grabbing select-none" : ""}`}
+      style={
+        dockPosition === "floating"
+          ? { left: floatingPos.x, top: floatingPos.y }
+          : undefined
+      }
+    >
+      <div
+        className="flex items-center justify-between border-b px-4 py-3 bg-muted/30"
+        onMouseDown={handleMouseDown}
+        style={{ cursor: dockPosition === "floating" ? "grab" : "default" }}
+      >
+        <div className="flex items-center gap-2">
+          {dockPosition === "floating" && (
+            <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+          )}
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Bot className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold">AI Assistant</h2>
+            <p className="text-xs text-muted-foreground">Manage tasks with natural language</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setMessages([])}
+            title="Clear chat"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleDockToggle("left")}
+            title="Dock left"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleDockToggle("right")}
+            title="Dock right"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="15" y1="3" x2="15" y2="21" />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleDockToggle("bottom")}
+            title="Dock bottom"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="3" y1="15" x2="21" y2="15" />
+            </svg>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleDockToggle("floating")}
+            title="Float"
+          >
+            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onOpenChange(false)}>
+            <XCircle className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="flex h-full flex-col items-center justify-center text-center">
+            <Bot className="mb-2 h-8 w-8 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">Ask me to create, move, or assign tasks.</p>
+            <div className="mt-4 space-y-2 text-xs text-muted-foreground/70">
+              <p>"Create a task called 'Fix bug'"</p>
+              <p>"Move 'Fix bug' to in_progress"</p>
+              <p>"Assign 'Fix bug' to John"</p>
+              <p className="mt-2 font-medium">Type /help for all commands</p>
             </div>
           </div>
-        </SheetHeader>
+        )}
 
-        <div className="flex-1 overflow-y-auto px-4 py-3">
-          {messages.length === 0 && (
-            <div className="flex h-full flex-col items-center justify-center text-center">
-              <Bot className="mb-3 h-10 w-10 text-muted-foreground/40" />
-              <p className="text-sm font-medium text-muted-foreground">
-                Ask me to create, move, or assign tasks
-              </p>
-              <div className="mt-4 space-y-2 text-xs text-muted-foreground/70">
-                <p>"Create a task called 'Fix bug'"</p>
-                <p>"Move 'Fix bug' to in_progress"</p>
-                <p>"Assign 'Fix bug' to John"</p>
-                <p className="mt-3 font-medium text-muted-foreground">Type /help for all commands</p>
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            {msg.role === "assistant" && (
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <Bot className="h-3 w-3 text-primary" />
               </div>
-            </div>
-          )}
-
-          <div className="space-y-3 py-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                {msg.role === "assistant" && (
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                    <Bot className="h-3 w-3 text-primary" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
-                  }`}
-                >
-                  {msg.role === "assistant" ? (
-                    <MarkdownText content={msg.content} />
+            )}
+            <div
+              className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                msg.role === "user"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-foreground"
+              }`}
+            >
+              {msg.role === "assistant" ? (
+                <MarkdownText content={msg.content} />
+              ) : (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
+              {msg.action && (
+                <div className="mt-1 flex items-center gap-1 text-xs opacity-70">
+                  {msg.action.result === "success" ? (
+                    <CheckCircle2 className="h-3 w-3" />
                   ) : (
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <XCircle className="h-3 w-3" />
                   )}
-                  {msg.action && (
-                    <div className="mt-1.5 flex items-center gap-1 text-xs opacity-70">
-                      {msg.action.result === "success" ? (
-                        <CheckCircle2 className="h-3 w-3" />
-                      ) : (
-                        <X className="h-3 w-4" />
-                      )}
-                      <span>{msg.action.type}</span>
-                    </div>
-                  )}
+                  <span>{msg.action.type}</span>
                 </div>
-                {msg.role === "user" && (
-                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary">
-                    <User className="h-3 w-3 text-primary-foreground" />
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {isLoading && (
-              <div className="flex gap-2">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <Bot className="h-3 w-3 text-primary" />
-                </div>
-                <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span className="text-sm text-muted-foreground">Thinking...</span>
-                </div>
+              )}
+            </div>
+            {msg.role === "user" && (
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary">
+                <User className="h-3 w-3 text-primary-foreground" />
               </div>
             )}
           </div>
-          <div ref={messagesEndRef} />
-        </div>
+        ))}
 
-        <div className="border-t p-3">
+        {isLoading && (
           <div className="flex gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask AI... (/help for commands)"
-              disabled={isLoading}
-            />
-            <Button onClick={handleSend} disabled={!input.trim() || isLoading} size="icon">
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+              <Bot className="h-3 w-3 text-primary" />
+            </div>
+            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span className="text-sm text-muted-foreground">Thinking...</span>
+            </div>
           </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="border-t p-4">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask AI to manage tasks... (type /help for commands)"
+            disabled={isLoading}
+          />
+          <Button onClick={handleSend} disabled={!input.trim() || isLoading} size="icon">
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 };
 
 function MarkdownText({ content }: { content: string }) {
   const renderLine = (line: string): React.ReactNode => {
+    // Bold text: replace **text** with <strong>
     const parts = line.split(/(\*\*[^*]+\*\*)/g);
     return parts.map((part, j) => {
       if (part.startsWith("**") && part.endsWith("**")) {
@@ -240,15 +386,20 @@ function MarkdownText({ content }: { content: string }) {
   const lines = content.split("\n");
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {lines.map((line, i) => {
-        if (line.trim() === "") return <br key={i} />;
+        if (line.trim() === "") {
+          return <br key={i} />;
+        }
+
         if (line.match(/^[📋🔄👤⌨️]/)) {
           return <p key={i} className="font-semibold mt-2 first:mt-0">{renderLine(line)}</p>;
         }
+
         if (line.startsWith('"') || line.startsWith("-")) {
           return <p key={i} className="text-muted-foreground pl-2">{renderLine(line)}</p>;
         }
+
         return <p key={i}>{renderLine(line)}</p>;
       })}
     </div>
