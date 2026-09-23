@@ -124,22 +124,19 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
               <SheetTitle>AI Assistant</SheetTitle>
             </div>
             <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => setMessages([])}
-                title="Clear chat"
-              >
-                <Trash2 className="h-4 w-4" />
+              <Button variant="ghost" size="icon-sm" onClick={() => setMessages([])} title="Clear">
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon-sm" onClick={() => onOpenChange(false)} title="Close">
+                <X className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4">
+        <div className="flex-1 overflow-y-auto px-4 py-3">
           {messages.length === 0 && (
-            <div className="flex h-full flex-col items-center justify-center text-center py-12">
+            <div className="flex h-full flex-col items-center justify-center text-center">
               <Bot className="mb-3 h-10 w-10 text-muted-foreground/40" />
               <p className="text-sm font-medium text-muted-foreground">
                 Ask me to create, move, or assign tasks
@@ -210,7 +207,7 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="border-t p-4">
+        <div className="border-t p-3">
           <div className="flex gap-2">
             <Input
               value={input}
