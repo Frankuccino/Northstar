@@ -22,7 +22,7 @@ export class GroqProvider implements AiProvider {
     userMessage: string;
   }): Promise<{ content: string; message: string; intent: string; payload: Record<string, unknown> }> {
     const response = await this.client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [
         { role: "system", content: params.systemPrompt },
         { role: "user", content: params.userMessage },
