@@ -507,12 +507,15 @@ Example responses:
       userMessage: message,
     });
 
+    console.log("[AI] Groq response:", JSON.stringify(result));
+
     // Execute the intent if it's a valid action
     let executionResult = null;
     if (result.intent !== "help" && result.intent !== "unknown" && result.intent !== "list_tasks") {
       executionResult = await executeAiIntent({
         clientId: 0,
         actorUserId: (req as any).user?.id,
+        actorRole: (req as any).user?.role,
         projectId,
         intent: result.intent,
         payload: result.payload,
