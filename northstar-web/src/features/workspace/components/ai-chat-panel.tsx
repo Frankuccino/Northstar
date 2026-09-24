@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { api } from "@/lib/axios";
 import { type AiMessage } from "../api/ai.api";
 
 interface Position {
@@ -132,18 +133,8 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     setIsLoading(true);
 
     try {
-      const res = await fetch(`/workspace/projects/${id}/ai/intent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userInput }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error ?? "Failed to get AI response");
-      }
-
-      const data = await res.json();
+      console.log("[AI] sending to /ai/chat:", userInput);
+      const data = await api.post(`/workspace/projects/${id}/ai/chat`, { message: userInput }).then(r => r.data);
 
       addAssistantMessage(
         data.content,
@@ -154,8 +145,10 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
         onTasksChanged();
       }
     } catch (err: any) {
+      console.error("[AI] error:", err.message, err);
+      const msg = err.response?.data?.error ?? "Something went wrong. Please try again.";
       addAssistantMessage(
-        err.message ?? "Something went wrong. Please try again.",
+        msg,
         { type: "error", result: "error" }
       );
     } finally {
