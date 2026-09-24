@@ -78,35 +78,56 @@ export async function executeAiIntent(params: {
 }) {
   const { clientId, actorUserId, actorRole, projectId, intent, payload, ip } = params;
 
-  const [client] = await db
-    .select()
-    .from(aiClients)
-    .where(eq(aiClients.id, clientId))
-    .limit(1);
+  // Groq path: clientId === 0 means authenticated user acting via AI chat.
+  // Skip client lookup — trust the user's role/permissions directly.
+  if (clientId !== 0) {
+    const [client] = await db
+      .select()
+      .from(aiClients)
+      .where(eq(aiClients.id, clientId))
+      .limit(1);
 
-  if (!client || client.revokedAt !== null) {
-    await db.insert(aiActions).values({
-      clientId,
-      actorUserId,
-      projectId,
-      intent,
-      result: "error: client not found or revoked",
-      ip,
-    });
-    throw new Error("AI client not found or revoked");
-  }
+    if (!client || client.revokedAt !== null) {
+      await db.insert(aiActions).values({
+        clientId,
+        actorUserId,
+        projectId,
+        intent,
+        result: "error: client not found or revoked",
+        ip,
+      });
+      throw new Error("AI client not found or revoked");
+    }
 
-  const allowed = await isAiActionAllowed(client.scope, intent);
-  if (!allowed) {
-    await db.insert(aiActions).values({
-      clientId,
-      actorUserId,
-      projectId,
-      intent,
-      result: "error: intent not allowed for scope",
-      ip,
-    });
-    throw new Error("Intent not allowed for this client scope");
+    const allowed = await isAiActionAllowed(client.scope, intent);
+    if (!allowed) {
+      await db.insert(aiActions).values({
+        clientId,
+        actorUserId,
+        projectId,
+        intent,
+        result: "error: intent not allowed for scope",
+        ip,
+      });
+      throw new Error("Intent not allowed for this client scope");
+    }
+  } else {
+    // For Groq path, scope is determined by user role:
+    // admin/manager = admin scope, member = write scope, otherwise read
+    const effectiveRole = actorRole ?? "member";
+    const scope: AiClientScope = effectiveRole === "admin" || effectiveRole === "manager" ? "admin" : "write";
+    const allowed = isAiActionAllowed(scope, intent);
+    if (!allowed) {
+      await db.insert(aiActions).values({
+        clientId,
+        actorUserId,
+        projectId,
+        intent,
+        result: `error: intent not allowed for role ${effectiveRole}`,
+        ip,
+      });
+      throw new Error(`Intent not allowed for role ${effectiveRole}`);
+    }
   }
 
   if (actorUserId) {
