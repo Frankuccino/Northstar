@@ -485,54 +485,122 @@ export const aiChatHandler = async (
       return res.status(503).json({ error: "AI provider not configured. Set GROQ_API_KEY." });
     }
 
-    const systemPrompt = `You are an AI assistant for a Kanban project management tool. Help users manage tasks through natural language.
+    const userRole = (req as any).user?.role;
+    const userId = (req as any).user?.id;
 
-Available actions:
-- create_task: Create a new task (requires title, optional status)
-- move_task: Move a task to a different column (requires status: backlog, ai_drafting, ready, in_progress, needs_revision, validated, done)
-- assign_task: Assign a task to someone (requires assigneeName)
-- list_tasks: Show tasks (no params needed)
-- help: Show help info
-
-Respond in JSON format:
-{"intent": "action_name", "payload": {"key": "value"}, "message": "Human readable response"}
-
-Example responses:
-{"intent": "create_task", "payload": {"title": "Fix bug", "status": "backlog"}, "message": "Created task \\"Fix bug\\" in backlog"}
-{"intent": "move_task", "payload": {"status": "in_progress"}, "message": "Moved task to in_progress"}
-{"intent": "help", "payload": {}, "message": "Here's what I can do:"}`;
-
-    const result = await provider.chat({
-      systemPrompt,
+    // Turn 1: Get initial AI response (may include search intent)
+    const turn1Result = await provider.chat({
+      systemPrompt: buildAiSystemPrompt(),
       userMessage: message,
     });
 
-    console.log("[AI] Groq response:", JSON.stringify(result));
+    console.log("[AI] Turn 1:", JSON.stringify(turn1Result));
 
-    // Execute the intent if it's a valid action
+    let finalResult = turn1Result;
+    let hadSearchStep = false;
+
+    // If the AI wants to search first, execute search and feed results back
+    if (turn1Result.intent === "search_tasks") {
+      hadSearchStep = true;
+      const query = String(turn1Result.payload?.query ?? "").trim();
+
+      if (query) {
+        const searchResults = await searchTasks(projectId, query);
+        console.log("[AI] Search results for '" + query + "':", searchResults.length, "tasks");
+
+        // Turn 2: Feed search results back, get final action
+        const turn2Prompt = buildSearchContextPrompt(message, searchResults);
+        finalResult = await provider.chat({
+          systemPrompt: turn2Prompt,
+          userMessage: message,
+        });
+
+        console.log("[AI] Turn 2 (after search):", JSON.stringify(finalResult));
+
+        // Safety: if turn 2 also says search_tasks, treat as unknown
+        if (finalResult.intent === "search_tasks") {
+          finalResult = {
+            ...finalResult,
+            intent: "unknown",
+            message: "I searched but couldn't determine the right action. Please clarify your request.",
+          };
+        }
+      } else {
+        // Empty query — treat as unknown
+        finalResult = {
+          ...turn1Result,
+          intent: "unknown",
+          message: "Please provide a search term to find tasks.",
+        };
+      }
+    }
+
+    // Execute the final action (if actionable)
     let executionResult = null;
-    if (result.intent !== "help" && result.intent !== "unknown" && result.intent !== "list_tasks") {
+    const finalIntent = finalResult.intent;
+    if (finalIntent !== "help" && finalIntent !== "unknown" && finalIntent !== "list_tasks") {
       executionResult = await executeAiIntent({
         clientId: 0,
-        actorUserId: (req as any).user?.id,
-        actorRole: (req as any).user?.role,
+        actorUserId: userId,
+        actorRole: userRole,
         projectId,
-        intent: result.intent,
-        payload: result.payload,
+        intent: finalIntent,
+        payload: finalResult.payload,
       });
     }
 
     res.json({
-      content: result.content,
-      message: result.message ?? result.content,
-      intent: result.intent,
-      payload: result.payload,
+      content: finalResult.content ?? finalResult.message,
+      message: finalResult.message ?? finalResult.content ?? "OK",
+      intent: finalIntent,
+      payload: finalResult.payload,
       executed: executionResult?.ok ?? false,
+      hadSearchStep,
     });
   } catch (err) {
     next(err);
   }
 };
+
+function buildAiSystemPrompt(): string {
+  return `You are an AI assistant for a Kanban project management tool. Help users manage tasks through natural language.
+
+Available actions:
+- create_task: Create a new task (requires title)
+- move_task: Move a task to a different column (requires taskId and status: backlog, ai_drafting, ready, in_progress, needs_revision, validated, done)
+- assign_task: Assign a task to someone (requires taskId and assigneeName)
+- search_tasks: Search for tasks by title or description (requires query). Use this to find a task by name BEFORE using move_task or assign_task.
+- list_tasks: Show tasks
+- help: Show help info
+
+Respond in JSON format:
+{"intent": "action_name", "payload": {"key": "value"}, "message": "Human readable response"}
+
+When a user asks you to move or assign a task by name, first use search_tasks to find it, then use the taskId from the search results in your final action.`;
+}
+
+function buildSearchContextPrompt(userMessage: string, searchResults: any[]): string {
+  const resultsText = searchResults.length > 0
+    ? `SEARCH RESULTS:\n${searchResults.map((t: any) => `  - Task ${t.id}: "${t.title}" (status: ${t.status}${t.priority ? ", priority: " + t.priority : ""})`).join("\n")}\n\nBased on these results, produce your final action. Copy the task ID from the matching result into your move_task or assign_task payload. Do NOT use search_tasks again.`
+    : `SEARCH RESULTS: No tasks matched the search query.\n\nInform the user that no matching tasks were found, or offer to create a new one.`;
+
+  return `You are an AI assistant for a Kanban project management tool.
+
+Available actions (search already done — do NOT use search_tasks again):
+- create_task: Create a new task (requires title)
+- move_task: Move a task to a different column (requires taskId and status)
+- assign_task: Assign a task to someone (requires taskId and assigneeName)
+- list_tasks: Show tasks
+- help: Show help info
+- unknown: If you can't determine the right action
+
+${resultsText}
+
+User's request: "${userMessage}"
+
+Respond in JSON format:
+{"intent": "action_name", "payload": {"key": "value"}, "message": "Human readable response"}`;
+}
 
 // ---- Labels ----------------------------------------------------------------
 export const getLabelsHandler = async (req: Request, res: Response, next: NextFunction) => {
