@@ -1,11 +1,23 @@
 import OpenAI from "openai";
 
+export interface AiTool {
+  name: string;
+  description: string;
+  parameters: Record<string, any>;
+}
+
 export interface AiProvider {
   chat(params: {
     systemPrompt: string;
     userMessage: string;
-  }): Promise<{ content: string; message: string; intent: string; payload: Record<string, unknown> }>;
+    tools?: AiTool[];
+    previousMessages?: Array<{ role: string; content: any; toolCallId?: string }>;
+  }): Promise<ChatResult>;
 }
+
+export type ChatResult =
+  | { kind: "text"; content: string; message: string; intent: string; payload: Record<string, unknown> }
+  | { kind: "tool_call"; toolCall: { name: string; arguments: Record<string, unknown> } };
 
 export class GroqProvider implements AiProvider {
   private client: OpenAI;
@@ -20,19 +32,49 @@ export class GroqProvider implements AiProvider {
   async chat(params: {
     systemPrompt: string;
     userMessage: string;
-  }): Promise<{ content: string; message: string; intent: string; payload: Record<string, unknown> }> {
-    const response = await this.client.chat.completions.create({
+    tools?: AiTool[];
+    previousMessages?: Array<{ role: string; content: any; toolCallId?: string }>;
+  }): Promise<ChatResult> {
+    const messages: Array<{ role: string; content: any; toolCallId?: string }> = [
+      { role: "system", content: params.systemPrompt },
+      { role: "user", content: params.userMessage },
+    ];
+    if (params.previousMessages) {
+      messages.push(...params.previousMessages);
+    }
+
+    const createParams: any = {
       model: "openai/gpt-oss-120b",
-      messages: [
-        { role: "system", content: params.systemPrompt },
-        { role: "user", content: params.userMessage },
-      ],
+      messages,
       temperature: 0.1,
       max_tokens: 500,
-    });
+    };
 
-    const content = response.choices[0]?.message?.content ?? "";
-    return this.parseResponse(content);
+    if (params.tools?.length) {
+      createParams.tools = params.tools.map((t) => ({
+        type: "function",
+        function: { name: t.name, description: t.description, parameters: t.parameters },
+      }));
+    }
+
+    const response = await this.client.chat.completions.create(createParams);
+    const message = response.choices[0]?.message;
+
+    // Tool call response?
+    if (message?.tool_calls?.length) {
+      const tc = message.tool_calls[0];
+      if (tc.type === "function") {
+        return {
+          kind: "tool_call",
+          toolCall: { name: tc.function.name, arguments: JSON.parse(tc.function.arguments) },
+        };
+      }
+    }
+
+    // Text response — fallback to parseResponse for help/unknown/fallback
+    const content = message?.content ?? "";
+    const parsed = this.parseResponse(content);
+    return { kind: "text", ...parsed };
   }
 
   private parseResponse(content: string): {
