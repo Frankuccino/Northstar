@@ -17,7 +17,7 @@ export interface AiProvider {
 
 export type ChatResult =
   | { kind: "text"; content: string; message: string; intent: string; payload: Record<string, unknown> }
-  | { kind: "tool_call"; toolCall: { name: string; arguments: Record<string, unknown> } };
+  | { kind: "tool_call"; toolCallId: string; toolCall: { name: string; arguments: Record<string, unknown> } };
 
 export class GroqProvider implements AiProvider {
   private client: OpenAI;
@@ -66,6 +66,7 @@ export class GroqProvider implements AiProvider {
       if (tc.type === "function") {
         return {
           kind: "tool_call",
+          toolCallId: tc.id,
           toolCall: { name: tc.function.name, arguments: JSON.parse(tc.function.arguments) },
         };
       }

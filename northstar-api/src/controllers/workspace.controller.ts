@@ -559,7 +559,7 @@ export const aiChatHandler = async (
 
     let finalResult: ChatResult = turn1Result;
     let hadSearchStep = false;
-    let previousMessages: Array<{ role: string; content: any; toolCallId?: string }> = [];
+    let previousMessages: Array<{ role: string; content: any; tool_call_id?: string }> = [];
 
     // Handle tool call or text response
     if (turn1Result.kind === "tool_call") {
@@ -568,7 +568,7 @@ export const aiChatHandler = async (
 
       // Execute the tool and format result for LLM
       const toolResult = await executeToolCall(tc, projectId);
-      previousMessages.push({ role: "tool", toolCallId: tc.name, content: toolResult });
+      previousMessages.push({ role: "tool", tool_call_id: turn1Result.toolCallId, content: toolResult });
 
       // Turn 2: Feed tool result back, get final response
       const turn2Result = await provider.chat({
@@ -588,7 +588,7 @@ export const aiChatHandler = async (
           const query = String(turn2Result.toolCall.arguments?.query ?? "").trim();
           if (query) {
             const results = await searchTasks(projectId, query);
-            previousMessages.push({ role: "tool", toolCallId: "search_tasks", content: formatSearchResults(results) });
+            previousMessages.push({ role: "tool", tool_call_id: turn2Result.toolCallId, content: formatSearchResults(results) });
             const turn3Result = await provider.chat({
               systemPrompt: buildAiSystemPrompt(),
               userMessage: message,
