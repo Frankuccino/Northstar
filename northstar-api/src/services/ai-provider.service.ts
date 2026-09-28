@@ -55,6 +55,7 @@ export class GroqProvider implements AiProvider {
         type: "function",
         function: { name: t.name, description: t.description, parameters: t.parameters },
       }));
+      console.log("[AI] SDK tools:", JSON.stringify(createParams.tools));
     }
 
     const response = await this.client.chat.completions.create(createParams);

@@ -46,8 +46,15 @@ import {
 } from "../services/ai.service.js";
 import { registerAiClient } from "../services/ai-client.service.js";
 import { getAiProvider } from "../services/ai-provider.service.js";
-import { listTasksQuerySchema, listInvitationsQuerySchema } from "../schemas/workspace.schema.js";
-import { executeAiIntentSchema, listAiActionsQuerySchema } from "../schemas/workspace.schema.js";
+import {
+  listTasksQuerySchema,
+  listInvitationsQuerySchema,
+} from "../schemas/workspace.schema.js";
+import {
+  executeAiIntentSchema,
+  listAiActionsQuerySchema,
+} from "../schemas/workspace.schema.js";
+import { db } from "../db/index.js";
 
 export const createProjectHandler = async (
   req: Request,
@@ -187,11 +194,7 @@ export const assignTaskHandler = async (
   try {
     const { assigneeId } = req.body;
     const actorId = req.user!.id;
-    const task = await assignTask(
-      Number(req.params.id),
-      actorId,
-      assigneeId,
-    );
+    const task = await assignTask(Number(req.params.id), actorId, assigneeId);
     res.json(task);
   } catch (err) {
     next(err);
@@ -483,7 +486,9 @@ export const aiChatHandler = async (
 
     const provider = getAiProvider();
     if (!provider) {
-      return res.status(503).json({ error: "AI provider not configured. Set GROQ_API_KEY." });
+      return res
+        .status(503)
+        .json({ error: "AI provider not configured. Set GROQ_API_KEY." });
     }
 
     const userRole = (req as any).user?.role;
@@ -493,10 +498,13 @@ export const aiChatHandler = async (
     const tools: AiTool[] = [
       {
         name: "search_tasks",
-        description: "Search for tasks by title or description. Use this to find a task by name before using move_task or assign_task.",
+        description:
+          "Search for tasks by title or description. Use this to find a task by name before using move_task or assign_task.",
         parameters: {
           type: "object",
-          properties: { query: { type: "string", description: "Search query" } },
+          properties: {
+            query: { type: "string", description: "Search query" },
+          },
           required: ["query"],
         },
       },
@@ -507,7 +515,11 @@ export const aiChatHandler = async (
           type: "object",
           properties: {
             title: { type: "string", description: "Task title" },
-            status: { type: "string", description: "Initial status (backlog, ai_drafting, ready, in_progress, needs_revision, validated, done)" },
+            status: {
+              type: "string",
+              description:
+                "Initial status (backlog, ai_drafting, ready, in_progress, needs_revision, validated, done)",
+            },
           },
           required: ["title"],
         },
@@ -518,8 +530,23 @@ export const aiChatHandler = async (
         parameters: {
           type: "object",
           properties: {
-            taskId: { type: "integer", description: "The ID of the task to move" },
-            status: { type: "string", enum: ["backlog", "ai_drafting", "ready", "in_progress", "needs_revision", "validated", "done"], description: "Target column status" },
+            taskId: {
+              type: "integer",
+              description: "The ID of the task to move",
+            },
+            status: {
+              type: "string",
+              enum: [
+                "backlog",
+                "ai_drafting",
+                "ready",
+                "in_progress",
+                "needs_revision",
+                "validated",
+                "done",
+              ],
+              description: "Target column status",
+            },
           },
           required: ["taskId", "status"],
         },
@@ -530,8 +557,14 @@ export const aiChatHandler = async (
         parameters: {
           type: "object",
           properties: {
-            taskId: { type: "integer", description: "The ID of the task to assign" },
-            assigneeName: { type: "string", description: "Name of the person to assign" },
+            taskId: {
+              type: "integer",
+              description: "The ID of the task to assign",
+            },
+            assigneeName: {
+              type: "string",
+              description: "Name of the person to assign",
+            },
           },
           required: ["taskId", "assigneeName"],
         },
@@ -559,7 +592,11 @@ export const aiChatHandler = async (
 
     let finalResult: ChatResult = turn1Result;
     let hadSearchStep = false;
-    let previousMessages: Array<{ role: string; content: any; tool_call_id?: string }> = [];
+    let previousMessages: Array<{
+      role: string;
+      content: any;
+      tool_call_id?: string;
+    }> = [];
 
     // Handle tool call or text response
     if (turn1Result.kind === "tool_call") {
@@ -568,13 +605,16 @@ export const aiChatHandler = async (
 
       // Execute the tool and format result for LLM
       const toolResult = await executeToolCall(tc, projectId);
-      previousMessages.push({ role: "tool", tool_call_id: turn1Result.toolCallId, content: toolResult });
+      previousMessages.push({
+        role: "tool",
+        tool_call_id: turn1Result.toolCallId,
+        content: toolResult,
+      });
 
-      // Turn 2: Feed tool result back, get final response
+    // Turn 2: Feed tool result back, get final response (no tools — LLM knows them from Turn 1)
       const turn2Result = await provider.chat({
         systemPrompt: buildAiSystemPrompt(),
         userMessage: message,
-        tools,
         previousMessages,
       });
 
@@ -585,14 +625,19 @@ export const aiChatHandler = async (
       if (turn2Result.kind === "tool_call") {
         if (turn2Result.toolCall.name === "search_tasks") {
           hadSearchStep = true;
-          const query = String(turn2Result.toolCall.arguments?.query ?? "").trim();
+          const query = String(
+            turn2Result.toolCall.arguments?.query ?? "",
+          ).trim();
           if (query) {
             const results = await searchTasks(projectId, query);
-            previousMessages.push({ role: "tool", tool_call_id: turn2Result.toolCallId, content: formatSearchResults(results) });
+            previousMessages.push({
+              role: "tool",
+              tool_call_id: turn2Result.toolCallId,
+              content: formatSearchResults(results),
+            });
             const turn3Result = await provider.chat({
               systemPrompt: buildAiSystemPrompt(),
               userMessage: message,
-              tools,
               previousMessages,
             });
             console.log("[AI] Turn 3:", JSON.stringify(turn3Result));
@@ -602,8 +647,10 @@ export const aiChatHandler = async (
           // Second tool call that's not search = unknown
           finalResult = {
             kind: "text",
-            content: "I wasn't able to complete that. Please try a different request.",
-            message: "I wasn't able to complete that. Please try a different request.",
+            content:
+              "I wasn't able to complete that. Please try a different request.",
+            message:
+              "I wasn't able to complete that. Please try a different request.",
             intent: "unknown",
             payload: {},
           };
@@ -611,15 +658,19 @@ export const aiChatHandler = async (
       }
     }
 
-    // Extract final result (must be text at this point)
-    let finalTextResult: { content: string; message: string; intent: string; payload: Record<string, unknown> };
+    let finalTextResult: {
+      content: string;
+      message: string;
+      intent: string;
+      payload: Record<string, unknown>;
+    };
     if (finalResult.kind === "text") {
       finalTextResult = finalResult;
     } else {
       // Tool call at the end — shouldn't happen, but handle gracefully
       finalTextResult = {
-        content: "I'm not sure how to help with that. Try asking for help.",
-        message: "I'm not sure how to help with that. Try asking for help.",
+        content: "I wasn't able to complete that. Please try a different request.",
+        message: "I wasn't able to complete that. Please try a different request.",
         intent: "unknown",
         payload: {},
       };
@@ -628,7 +679,11 @@ export const aiChatHandler = async (
     // Execute the final action (if actionable)
     let executionResult = null;
     const finalIntent = finalTextResult.intent;
-    if (finalIntent !== "help" && finalIntent !== "unknown" && finalIntent !== "list_tasks") {
+    if (
+      finalIntent !== "help" &&
+      finalIntent !== "unknown" &&
+      finalIntent !== "list_tasks"
+    ) {
       executionResult = await executeAiIntent({
         clientId: 0,
         actorUserId: userId,
@@ -653,8 +708,12 @@ export const aiChatHandler = async (
 };
 
 // Execute a single tool call and return a result string for the LLM.
-// Only information-gathering tools (search, list, help). Mutations route through executeAiIntent.
-async function executeToolCall(toolCall: { name: string; arguments: Record<string, unknown> }, projectId: number): Promise<string> {
+// All tools (info-gathering AND mutations) execute here. The result is fed back to the LLM.
+// executeAiIntent is only used for the fallback text-response path (parseResponse).
+async function executeToolCall(
+  toolCall: { name: string; arguments: Record<string, unknown> },
+  projectId: number,
+): Promise<string> {
   switch (toolCall.name) {
     case "search_tasks": {
       const query = String(toolCall.arguments.query ?? "").trim();
@@ -662,12 +721,82 @@ async function executeToolCall(toolCall: { name: string; arguments: Record<strin
       const results = await searchTasks(projectId, query);
       return formatSearchResults(results);
     }
+    case "create_task": {
+      const title = String(toolCall.arguments.title ?? "").trim();
+      if (!title) return JSON.stringify({ error: "Title is required" });
+      // createTask returns a single task object, not an array — assign directly
+      const task = await createTask(projectId, title);
+      return JSON.stringify({
+        success: true,
+        taskId: task.id,
+        title: task.title,
+        status: task.status,
+      });
+    }
+    case "move_task": {
+      const taskId = Number(toolCall.arguments.taskId);
+      const status = String(toolCall.arguments.status ?? "");
+      const allowedStatuses = [
+        "backlog",
+        "ai_drafting",
+        "ready",
+        "in_progress",
+        "needs_revision",
+        "validated",
+        "done",
+      ];
+      if (!allowedStatuses.includes(status))
+        return JSON.stringify({
+          error: `Invalid status: ${status}. Must be one of: ${allowedStatuses.join(", ")}`,
+        });
+      try {
+        const updated = await moveTask(taskId, status as any);
+        return JSON.stringify({
+          success: true,
+          taskId: updated.id,
+          title: updated.title,
+          status: updated.status,
+        });
+      } catch (err: any) {
+        return JSON.stringify({ error: err.message });
+      }
+    }
+    case "assign_task": {
+      const taskId = Number(toolCall.arguments.taskId);
+      const assigneeName = String(toolCall.arguments.assigneeName ?? "").trim();
+      if (!assigneeName)
+        return JSON.stringify({ error: "Assignee name is required" });
+      try {
+        const users = await getAssignableUsers(projectId);
+        const user = users.find((u: any) => u.name.toLowerCase() === assigneeName.toLowerCase());
+        if (!user) return JSON.stringify({ error: `User "${assigneeName}" not found` });
+        const updated = await assignTask(taskId, 0, user.id);
+        return JSON.stringify({
+          success: true,
+          taskId: updated.id,
+          title: updated.title,
+          assignee: user.name,
+        });
+      } catch (err: any) {
+        return JSON.stringify({ error: err.message });
+      }
+    }
     case "list_tasks": {
       const allTasks = await getTasksByProject(projectId);
-      return JSON.stringify({ count: allTasks.length, tasks: allTasks.map((t: any) => ({ id: t.id, title: t.title, status: t.status })) });
+      return JSON.stringify({
+        count: allTasks.length,
+        tasks: allTasks.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+        })),
+      });
     }
     case "help": {
-      return JSON.stringify({ message: "You can create tasks, move them between columns, assign them, search for tasks, and list all tasks. Try: 'Create a task called Fix bug', 'Move Fix bug to done', 'Assign Fix bug to John'." });
+      return JSON.stringify({
+        message:
+          "You can create tasks, move them between columns, assign them, search for tasks, and list all tasks. Try: 'Create a task called Fix bug', 'Move Fix bug to done', 'Assign Fix bug to John'.",
+      });
     }
     default:
       return JSON.stringify({ error: `Unknown tool: ${toolCall.name}` });
@@ -676,11 +805,19 @@ async function executeToolCall(toolCall: { name: string; arguments: Record<strin
 
 function formatSearchResults(results: any[]): string {
   if (results.length === 0) {
-    return JSON.stringify({ count: 0, message: "No tasks matched the search query." });
+    return JSON.stringify({
+      count: 0,
+      message: "No tasks matched the search query.",
+    });
   }
   return JSON.stringify({
     count: results.length,
-    tasks: results.map((t: any) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority })),
+    tasks: results.map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+    })),
   });
 }
 
@@ -700,7 +837,11 @@ Use search_tasks first when the user mentions a task by name. Then use the task 
 }
 
 // ---- Labels ----------------------------------------------------------------
-export const getLabelsHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const getLabelsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const projectId = Number(req.params.id);
     const labels = await getLabels(projectId);
@@ -710,7 +851,11 @@ export const getLabelsHandler = async (req: Request, res: Response, next: NextFu
   }
 };
 
-export const createLabelHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const createLabelHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const projectId = Number(req.params.id);
     const label = await createLabel(projectId, req.body);
@@ -720,7 +865,11 @@ export const createLabelHandler = async (req: Request, res: Response, next: Next
   }
 };
 
-export const deleteLabelHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteLabelHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const labelId = Number(req.params.labelId);
     await deleteLabel(labelId);
@@ -730,7 +879,11 @@ export const deleteLabelHandler = async (req: Request, res: Response, next: Next
   }
 };
 
-export const addLabelToTaskHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const addLabelToTaskHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const taskId = Number(req.params.taskId);
     const labelId = Number(req.params.labelId);
@@ -741,7 +894,11 @@ export const addLabelToTaskHandler = async (req: Request, res: Response, next: N
   }
 };
 
-export const removeLabelFromTaskHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const removeLabelFromTaskHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const taskId = Number(req.params.taskId);
     const labelId = Number(req.params.labelId);
@@ -752,7 +909,11 @@ export const removeLabelFromTaskHandler = async (req: Request, res: Response, ne
   }
 };
 
-export const getTaskLabelsHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const getTaskLabelsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const taskId = Number(req.params.taskId);
     const labels = await getTaskLabels(taskId);
@@ -763,7 +924,11 @@ export const getTaskLabelsHandler = async (req: Request, res: Response, next: Ne
 };
 
 // ---- Task Comments ---------------------------------------------------------
-export const getTaskCommentsHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const getTaskCommentsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const taskId = Number(req.params.taskId);
     const comments = await getTaskComments(taskId);
@@ -773,7 +938,11 @@ export const getTaskCommentsHandler = async (req: Request, res: Response, next: 
   }
 };
 
-export const createTaskCommentHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const createTaskCommentHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const taskId = Number(req.params.taskId);
     const actorId = req.user!.id;
@@ -785,7 +954,11 @@ export const createTaskCommentHandler = async (req: Request, res: Response, next
   }
 };
 
-export const deleteTaskCommentHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const deleteTaskCommentHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const commentId = Number(req.params.commentId);
     await deleteTaskComment(commentId);
@@ -796,7 +969,11 @@ export const deleteTaskCommentHandler = async (req: Request, res: Response, next
 };
 
 // ---- Task Priority & Due Date ---------------------------------------------
-export const updateTaskPriorityHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const updateTaskPriorityHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const taskId = Number(req.params.id);
     const { priority } = req.body;
@@ -807,11 +984,18 @@ export const updateTaskPriorityHandler = async (req: Request, res: Response, nex
   }
 };
 
-export const updateTaskDueDateHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const updateTaskDueDateHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const taskId = Number(req.params.id);
     const { dueDate } = req.body;
-    const updated = await updateTaskDueDate(taskId, dueDate ? new Date(dueDate) : null);
+    const updated = await updateTaskDueDate(
+      taskId,
+      dueDate ? new Date(dueDate) : null,
+    );
     res.json(updated);
   } catch (err) {
     next(err);
@@ -819,7 +1003,11 @@ export const updateTaskDueDateHandler = async (req: Request, res: Response, next
 };
 
 // ---- Search ----------------------------------------------------------------
-export const searchTasksHandler = async (req: Request, res: Response, next: NextFunction) => {
+export const searchTasksHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const projectId = Number(req.params.id);
     const query = String(req.query.q ?? "");
