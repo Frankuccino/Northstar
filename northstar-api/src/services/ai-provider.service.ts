@@ -48,6 +48,7 @@ export class GroqProvider implements AiProvider {
       messages,
       temperature: 0.1,
       max_tokens: 500,
+      tool_choice: params.tools?.length ? "auto" : undefined,
     };
 
     if (params.tools?.length) {
