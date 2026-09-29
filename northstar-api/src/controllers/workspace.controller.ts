@@ -605,8 +605,26 @@ export const aiChatHandler = async (
 
       // Execute the tool and format result for LLM
       const toolResult = await executeToolCall(tc, projectId);
+
+      // Build the conversation for Turn 2: assistant tool_call + tool result
+      // Groq's Harmony tokenizer needs the assistant tool_call BEFORE the tool result
+      const assistantToolCallMsg = {
+        role: "assistant" as const,
+        content: null,
+        tool_calls: [
+          {
+            id: turn1Result.toolCallId,
+            type: "function" as const,
+            function: {
+              name: tc.name,
+              arguments: JSON.stringify(tc.arguments),
+            },
+          },
+        ],
+      };
+      previousMessages.push(assistantToolCallMsg);
       previousMessages.push({
-        role: "tool",
+        role: "tool" as const,
         tool_call_id: turn1Result.toolCallId,
         content: toolResult,
       });
