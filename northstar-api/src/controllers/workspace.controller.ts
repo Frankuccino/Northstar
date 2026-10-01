@@ -593,6 +593,10 @@ export const aiChatHandler = async (
     let finalResult: ChatResult = turn1Result;
     let hadSearchStep = false;
     let toolExecuted = false;
+    // Only mutations should tell the client to refetch the board. Read-only
+    // tools (search/list/help) leave the board untouched.
+    let mutationExecuted = false;
+    const MUTATION_TOOLS = new Set(["create_task", "move_task", "assign_task"]);
     let previousMessages: Array<{
       role: string;
       content: any;
@@ -608,6 +612,7 @@ export const aiChatHandler = async (
       // Execute the tool and format result for LLM
       const toolResult = await executeToolCall(tc, projectId);
       toolExecuted = true;
+      if (MUTATION_TOOLS.has(tc.name)) mutationExecuted = true;
 
       // Build the conversation for Turn 2: assistant tool_call + tool result
       // Groq's Harmony tokenizer needs the assistant tool_call BEFORE the tool result
@@ -688,6 +693,7 @@ export const aiChatHandler = async (
           console.log("[AI] Turn 2 tool call:", tc2.name, tc2.arguments);
           const toolResult2 = await executeToolCall(tc2, projectId);
           toolExecuted = true;
+          if (MUTATION_TOOLS.has(tc2.name)) mutationExecuted = true;
           previousMessages.push({
             role: "assistant" as const,
             content: null,
@@ -764,7 +770,8 @@ export const aiChatHandler = async (
       message: finalTextResult.message ?? finalTextResult.content ?? "OK",
       intent: finalIntent,
       payload: finalTextResult.payload,
-      executed: executionResult?.ok ?? false,
+      executed: mutationExecuted || (executionResult?.ok ?? false),
+      changed: mutationExecuted || (executionResult?.ok ?? false),
       hadSearchStep,
     });
   } catch (err) {
@@ -779,20 +786,26 @@ async function executeToolCall(
   toolCall: { name: string; arguments: Record<string, unknown> },
   projectId: number,
 ): Promise<string> {
-  switch (toolCall.name) {
+  const tool = toolCall.name;
+  switch (tool) {
     case "search_tasks": {
       const query = String(toolCall.arguments.query ?? "").trim();
-      if (!query) return JSON.stringify({ error: "No search query provided" });
+      if (!query) return toolErr(tool, "MISSING_ARG", "No search query provided.");
       const results = await searchTasks(projectId, query);
-      return formatSearchResults(results);
+      return toolOk(
+        tool,
+        results.length === 0
+          ? `No tasks matched "${query}".`
+          : `Found ${results.length} task${results.length === 1 ? "" : "s"} matching "${query}".`,
+        { query, count: results.length, tasks: summarizeTasks(results) },
+      );
     }
     case "create_task": {
       const title = String(toolCall.arguments.title ?? "").trim();
-      if (!title) return JSON.stringify({ error: "Title is required" });
+      if (!title) return toolErr(tool, "MISSING_ARG", "A task title is required.");
       // createTask returns a single task object, not an array — assign directly
       const task = await createTask(projectId, title);
-      return JSON.stringify({
-        success: true,
+      return toolOk(tool, `Created "${task.title}" in backlog.`, {
         taskId: task.id,
         title: task.title,
         status: task.status,
@@ -801,71 +814,122 @@ async function executeToolCall(
     case "move_task": {
       const taskId = Number(toolCall.arguments.taskId);
       const status = String(toolCall.arguments.status ?? "");
-      const allowedStatuses = [
-        "backlog",
-        "ai_drafting",
-        "ready",
-        "in_progress",
-        "needs_revision",
-        "validated",
-        "done",
-      ];
-      if (!allowedStatuses.includes(status))
-        return JSON.stringify({
-          error: `Invalid status: ${status}. Must be one of: ${allowedStatuses.join(", ")}`,
-        });
+      if (!Number.isFinite(taskId))
+        return toolErr(tool, "MISSING_ARG", "A numeric taskId is required.");
+      if (!TASK_STATUSES.includes(status as any))
+        return toolErr(
+          tool,
+          "INVALID_STATUS",
+          `Invalid status "${status}". Must be one of: ${TASK_STATUSES.join(", ")}.`,
+        );
       try {
         const updated = await moveTask(taskId, status as any);
-        return JSON.stringify({
-          success: true,
+        return toolOk(tool, `Moved "${updated.title}" to ${updated.status}.`, {
           taskId: updated.id,
           title: updated.title,
           status: updated.status,
         });
       } catch (err: any) {
-        return JSON.stringify({ error: err.message });
+        return toolErr(tool, "MOVE_FAILED", err.message);
       }
     }
     case "assign_task": {
       const taskId = Number(toolCall.arguments.taskId);
       const assigneeName = String(toolCall.arguments.assigneeName ?? "").trim();
+      if (!Number.isFinite(taskId))
+        return toolErr(tool, "MISSING_ARG", "A numeric taskId is required.");
       if (!assigneeName)
-        return JSON.stringify({ error: "Assignee name is required" });
+        return toolErr(tool, "MISSING_ARG", "An assignee name is required.");
       try {
         const users = await getAssignableUsers(projectId);
-        const user = users.find((u: any) => u.name.toLowerCase() === assigneeName.toLowerCase());
-        if (!user) return JSON.stringify({ error: `User "${assigneeName}" not found` });
+        const user = users.find(
+          (u: any) => u.name.toLowerCase() === assigneeName.toLowerCase(),
+        );
+        if (!user)
+          return toolErr(
+            tool,
+            "USER_NOT_FOUND",
+            `No project member named "${assigneeName}".`,
+            { availableUsers: users.map((u: any) => u.name) },
+          );
         const updated = await assignTask(taskId, 0, user.id);
-        return JSON.stringify({
-          success: true,
+        return toolOk(tool, `Assigned "${updated.title}" to ${user.name}.`, {
           taskId: updated.id,
           title: updated.title,
           assignee: user.name,
         });
       } catch (err: any) {
-        return JSON.stringify({ error: err.message });
+        return toolErr(tool, "ASSIGN_FAILED", err.message);
       }
     }
     case "list_tasks": {
       const allTasks = await getTasksByProject(projectId);
-      return JSON.stringify({
-        count: allTasks.length,
-        tasks: allTasks.map((t: any) => ({
-          id: t.id,
-          title: t.title,
-          status: t.status,
-        })),
-      });
+      return toolOk(
+        tool,
+        allTasks.length === 0
+          ? "The board has no tasks."
+          : `Listed ${allTasks.length} task${allTasks.length === 1 ? "" : "s"}.`,
+        { count: allTasks.length, tasks: summarizeTasks(allTasks) },
+      );
     }
     case "help": {
-      return JSON.stringify({
-        message:
-          "You can create tasks, move them between columns, assign them, search for tasks, and list all tasks. Try: 'Create a task called Fix bug', 'Move Fix bug to done', 'Assign Fix bug to John'.",
+      return toolOk(tool, "Returned usage help.", {
+        usage: [
+          "Create a task called Fix bug",
+          "Move Fix bug to done",
+          "Assign Fix bug to John",
+          "Search for bug",
+          "List all tasks",
+        ],
       });
     }
     default:
-      return JSON.stringify({ error: `Unknown tool: ${toolCall.name}` });
+      return toolErr(tool, "UNKNOWN_TOOL", `Unknown tool: ${tool}`);
   }
+}
+
+const TASK_STATUSES = [
+  "backlog",
+  "ai_drafting",
+  "ready",
+  "in_progress",
+  "needs_revision",
+  "validated",
+  "done",
+] as const;
+
+function summarizeTasks(tasks: any[]) {
+  return tasks.map((t: any) => ({
+    id: t.id,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+  }));
+}
+
+// Every tool returns the same envelope so the LLM, the API response, and the
+// future streaming layer all read one shape instead of six ad-hoc ones.
+function toolOk(
+  tool: string,
+  summary: string,
+  data?: Record<string, unknown>,
+): string {
+  return JSON.stringify({ ok: true, tool, summary, ...(data ? { data } : {}) });
+}
+
+function toolErr(
+  tool: string,
+  code: string,
+  message: string,
+  data?: Record<string, unknown>,
+): string {
+  return JSON.stringify({
+    ok: false,
+    tool,
+    summary: message,
+    error: { code, message },
+    ...(data ? { data } : {}),
+  });
 }
 
 function formatSearchResults(results: any[]): string {
