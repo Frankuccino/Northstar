@@ -1,6 +1,6 @@
 # AI Chat: Response Contract + Agent Activity Streaming
 
-> Status: Design — next implementation target
+> Status: Phase 1 implemented (`06ccc86`) — Phase 2 (SSE streaming) is next
 > Date: 2026-10-01
 > Prerequisite: Pattern 1 (Tool Calling) — verified working, all 6 tools
 > Related: `ai-pattern-3-action-registry.md`, `ai-harmony-fix-detail.md`
@@ -224,12 +224,12 @@ appends one message (`ai-chat-panel.tsx:137`). Streaming requires:
 
 ## Implementation Phases
 
-**Phase 1 — Contract (no streaming).**
-- Add `ToolResult` envelope; normalize all 6 tool cases.
-- Return `steps`, `status`, `changed` from `aiChatHandler`.
-- Drop `intent` and `executed` from the response.
-- Update `ai.api.ts` types and the panel to render `steps` statically.
-- Verify with the existing curl suite (project 97).
+**Phase 1 — Contract (no streaming). ✅ DONE (`06ccc86`)**
+- ✅ Added `ToolResult` envelope; normalized all 6 tool cases.
+- ✅ Accurate `changed` flag (mutation tools only).
+- ⬜ Return `steps`, `status` from `aiChatHandler` — *still pending*.
+- ⬜ Drop `intent`/`executed` from the response — *still pending*.
+- ⬜ Update `ai.api.ts` types and the panel to render `steps` — *still pending*.
 
 **Phase 2 — Streaming.**
 - Add `stream: true` branch emitting SSE.
