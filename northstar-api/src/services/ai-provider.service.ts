@@ -17,7 +17,12 @@ export interface AiProvider {
 
 export type ChatResult =
   | { kind: "text"; content: string; message: string; intent: string; payload: Record<string, unknown> }
-  | { kind: "tool_call"; toolCallId: string; toolCall: { name: string; arguments: Record<string, unknown> } };
+  | {
+      kind: "tool_call";
+      toolCallId: string;
+      toolCall: { name: string; arguments: Record<string, unknown> };
+      argumentsParseError?: string;
+    };
 
 export class GroqProvider implements AiProvider {
   private client: OpenAI;
@@ -66,11 +71,24 @@ export class GroqProvider implements AiProvider {
     if (message?.tool_calls?.length) {
       const tc = message.tool_calls[0];
       if (tc.type === "function") {
+        // Groq occasionally returns malformed or empty argument JSON. Parse
+        // defensively so a bad payload surfaces as a tool error the LLM can
+        // recover from, instead of a 400 that kills the whole request.
+        let args: Record<string, unknown> = {};
+        let parseError: string | null = null;
+        const raw = tc.function.arguments ?? "";
+        try {
+          args = raw.trim() ? JSON.parse(raw) : {};
+        } catch {
+          parseError = raw;
+          console.warn("[AI] Unparseable tool arguments:", raw);
+        }
         return {
           kind: "tool_call",
           toolCallId: tc.id,
-          toolCall: { name: tc.function.name, arguments: JSON.parse(tc.function.arguments) },
-        };
+          toolCall: { name: tc.function.name, arguments: args },
+          ...(parseError ? { argumentsParseError: parseError } : {}),
+        } as ChatResult;
       }
     }
 

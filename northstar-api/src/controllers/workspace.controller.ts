@@ -592,10 +592,12 @@ export const aiChatHandler = async (
 
     let finalResult: ChatResult = turn1Result;
     let hadSearchStep = false;
+    let toolExecuted = false;
     let previousMessages: Array<{
       role: string;
       content: any;
       tool_call_id?: string;
+      tool_calls?: any[];
     }> = [];
 
     // Handle tool call or text response
@@ -605,6 +607,7 @@ export const aiChatHandler = async (
 
       // Execute the tool and format result for LLM
       const toolResult = await executeToolCall(tc, projectId);
+      toolExecuted = true;
 
       // Build the conversation for Turn 2: assistant tool_call + tool result
       // Groq's Harmony tokenizer needs the assistant tool_call BEFORE the tool result
@@ -629,10 +632,13 @@ export const aiChatHandler = async (
         content: toolResult,
       });
 
-    // Turn 2: Feed tool result back, get final response (no tools — LLM knows them from Turn 1)
+    // Turn 2: Feed tool result back. Tools are re-sent so the LLM can chain a
+    // second call (search → move/assign). Safe now that tool_choice is set and
+    // every tool result is preceded by its assistant tool_call message.
       const turn2Result = await provider.chat({
         systemPrompt: buildAiSystemPrompt(),
         userMessage: message,
+        tools,
         previousMessages,
       });
 
@@ -649,29 +655,66 @@ export const aiChatHandler = async (
           if (query) {
             const results = await searchTasks(projectId, query);
             previousMessages.push({
-              role: "tool",
+              role: "assistant" as const,
+              content: null,
+              tool_calls: [
+                {
+                  id: turn2Result.toolCallId,
+                  type: "function" as const,
+                  function: {
+                    name: turn2Result.toolCall.name,
+                    arguments: JSON.stringify(turn2Result.toolCall.arguments),
+                  },
+                },
+              ],
+            });
+            previousMessages.push({
+              role: "tool" as const,
               tool_call_id: turn2Result.toolCallId,
               content: formatSearchResults(results),
             });
             const turn3Result = await provider.chat({
               systemPrompt: buildAiSystemPrompt(),
               userMessage: message,
+              tools,
               previousMessages,
             });
             console.log("[AI] Turn 3:", JSON.stringify(turn3Result));
             finalResult = turn3Result;
           }
         } else {
-          // Second tool call that's not search = unknown
-          finalResult = {
-            kind: "text",
-            content:
-              "I wasn't able to complete that. Please try a different request.",
-            message:
-              "I wasn't able to complete that. Please try a different request.",
-            intent: "unknown",
-            payload: {},
-          };
+          // Second tool call that's not search = execute it (e.g. move/assign after search)
+          const tc2 = turn2Result.toolCall;
+          console.log("[AI] Turn 2 tool call:", tc2.name, tc2.arguments);
+          const toolResult2 = await executeToolCall(tc2, projectId);
+          toolExecuted = true;
+          previousMessages.push({
+            role: "assistant" as const,
+            content: null,
+            tool_calls: [
+              {
+                id: turn2Result.toolCallId,
+                type: "function" as const,
+                function: {
+                  name: tc2.name,
+                  arguments: JSON.stringify(tc2.arguments),
+                },
+              },
+            ],
+          });
+          previousMessages.push({
+            role: "tool" as const,
+            tool_call_id: turn2Result.toolCallId,
+            content: toolResult2,
+          });
+          const turn3Result = await provider.chat({
+            systemPrompt: buildAiSystemPrompt(),
+            userMessage: message,
+            tools,
+            previousMessages,
+          });
+          console.log("[AI] Turn 3 (after mutation):", JSON.stringify(turn3Result));
+          finalResult = turn3Result;
         }
       }
     }
@@ -695,9 +738,13 @@ export const aiChatHandler = async (
     }
 
     // Execute the final action (if actionable)
+    // Skip when a tool already executed — the tool path is authoritative.
+    // Without this guard, parseResponse() keyword-matches the LLM's confirmation
+    // prose (e.g. "Your task has been created") and re-runs the mutation.
     let executionResult = null;
     const finalIntent = finalTextResult.intent;
     if (
+      !toolExecuted &&
       finalIntent !== "help" &&
       finalIntent !== "unknown" &&
       finalIntent !== "list_tasks"
