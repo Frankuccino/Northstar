@@ -1,8 +1,9 @@
 # AI Pattern Implementation: Tool Calling (Function Calling)
 
 > Pattern 1 from [[AI Engineering - Production Patterns/01_Patterns_Reference]]
-> Status: Planned (Phase 1 ready to implement)
-> Date: 2026-09-24
+> Status: Implemented and verified — all 6 tools working
+> See `ai-pattern-1-tool-calling-implementation.md` for our design decisions
+> Date: 2026-09-24 (header corrected 2026-10-01)
 
 ---
 
@@ -144,7 +145,7 @@ User message → LLM decides → tool call → execute tool → feed result back
 - **Risk-gating** (Pattern 4) — not adding delete until we're ready for confirmation
 - **Actor abstraction** (Pattern 5) — not refactoring the actor model yet
 - **Full agent framework** — this is a simple tool-call loop, not LangChain or a framework
-- **Streaming** — not adding streaming to tool calls yet
+- **Streaming** — deferred to Phase 2; see `ai-agent-activity-streaming.md`
 
 ## Study Hints: What to Research
 
