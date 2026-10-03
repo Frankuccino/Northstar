@@ -29,10 +29,23 @@ export const executeAiIntent = async (
   return res.data;
 };
 
+export interface AiChatResponse {
+  content: string;
+  message: string;
+  intent: string;
+  payload: Record<string, unknown>;
+  /** True only when a mutation tool ran (create/move/assign) — drives board refetch. */
+  changed: boolean;
+  executed: boolean;
+  hadSearchStep: boolean;
+}
+
 export const aiChat = async (
   projectId: number,
   message: string,
-): Promise<{ content: string; message: string; intent: string; payload: Record<string, unknown>; executed: boolean }> => {
-  const res = await api.post(`/workspace/projects/${projectId}/ai/chat`, { message });
+): Promise<AiChatResponse> => {
+  const res = await api.post(`/workspace/projects/${projectId}/ai/chat`, {
+    message,
+  });
   return res.data;
 };

@@ -3,8 +3,7 @@ import { useParams } from "react-router-dom";
 import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/axios";
-import { type AiMessage } from "../api/ai.api";
+import { aiChat, type AiMessage } from "../api/ai.api";
 
 interface Position {
   x: number;
@@ -134,14 +133,16 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
 
     try {
       console.log("[AI] sending to /ai/chat:", userInput);
-      const data = await api.post(`/workspace/projects/${id}/ai/chat`, { message: userInput }).then(r => r.data);
+      const data = await aiChat(id, userInput);
 
       addAssistantMessage(
         data.content,
-        { type: data.intent, result: data.intent !== "unknown" ? "success" : "error" }
+        { type: data.intent, result: data.changed ? "success" : "info" }
       );
 
-      if (data.intent !== "unknown") {
+      // Only refetch when a mutation actually ran — read-only requests
+      // (help, list, search) leave the board untouched.
+      if (data.changed) {
         onTasksChanged();
       }
     } catch (err: any) {
@@ -314,9 +315,10 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
               )}
               {msg.action && (
                 <div className="mt-1 flex items-center gap-1 text-xs opacity-70">
-                  {msg.action.result === "success" ? (
+                  {msg.action.result === "success" && (
                     <CheckCircle2 className="h-3 w-3" />
-                  ) : (
+                  )}
+                  {msg.action.result === "error" && (
                     <XCircle className="h-3 w-3" />
                   )}
                   <span>{msg.action.type}</span>
