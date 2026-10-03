@@ -433,7 +433,7 @@ describe("GET /workspace/:id/tasks — assignee name (defect display)", () => {
   afterEach(cleanup);
   beforeEach(cleanup);
 
-  it("returns assigneeName for an assigned task, null when unassigned", async () => {
+  it("returns assignee_name for an assigned task, null when unassigned", async () => {
     const token = await authToken();
     const [me] = await db
       .select({ id: users.id, name: users.name })
@@ -460,9 +460,11 @@ describe("GET /workspace/:id/tasks — assignee name (defect display)", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
 
+    // The API contract is snake_case (see getTasksByProject select aliases);
+    // the frontend's toTask mapper converts to camelCase for the UI.
     const byId = new Map((res.body as any[]).map((t: any) => [t.id, t]));
-    expect(byId.get(assigned.body.id).assigneeName).toBe(me.name);
-    expect(byId.get(unassigned.body.id).assigneeName).toBeNull();
+    expect(byId.get(assigned.body.id).assignee_name).toBe(me.name);
+    expect(byId.get(unassigned.body.id).assignee_name).toBeNull();
   });
 });
 
