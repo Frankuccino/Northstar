@@ -676,7 +676,7 @@ export const aiChatHandler = async (
             previousMessages.push({
               role: "tool" as const,
               tool_call_id: turn2Result.toolCallId,
-              content: formatSearchResults(results),
+              content: formatSearchResults(results, query),
             });
             const turn3Result = await provider.chat({
               systemPrompt: buildAiSystemPrompt(),
@@ -932,22 +932,31 @@ function toolErr(
   });
 }
 
-function formatSearchResults(results: any[]): string {
+function formatSearchResults(results: any[], query?: string): string {
+  const q = query?.trim();
   if (results.length === 0) {
-    return JSON.stringify({
-      count: 0,
-      message: "No tasks matched the search query.",
-    });
+    return toolOk(
+      "search_tasks",
+      q ? `No tasks matched "${q}".` : "No tasks matched the search query.",
+      { query: q, count: 0, tasks: [] },
+    );
   }
-  return JSON.stringify({
-    count: results.length,
-    tasks: results.map((t: any) => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,
-      priority: t.priority,
-    })),
-  });
+  return toolOk(
+    "search_tasks",
+    q
+      ? `Found ${results.length} task${results.length === 1 ? "" : "s"} matching "${q}".`
+      : `Found ${results.length} task${results.length === 1 ? "" : "s"}.`,
+    {
+      query: q,
+      count: results.length,
+      tasks: results.map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+      })),
+    },
+  );
 }
 
 function buildAiSystemPrompt(): string {
