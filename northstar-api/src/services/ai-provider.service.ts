@@ -152,7 +152,16 @@ export class GroqProvider implements AiProvider {
   }
 }
 
+// Test seam. Tests install a stub here so the chat flow never reaches Groq;
+// production leaves it null and falls through to the real provider.
+let testProvider: AiProvider | null = null;
+
+export const __setTestProvider = (p: AiProvider | null) => {
+  testProvider = p;
+};
+
 export const getAiProvider = (): AiProvider | null => {
+  if (testProvider) return testProvider;
   if (process.env.GROQ_API_KEY) {
     return new GroqProvider();
   }
