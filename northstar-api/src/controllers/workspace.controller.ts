@@ -484,6 +484,10 @@ export const aiChatHandler = async (
     const { message } = req.body;
     const projectId = Number(req.params.id);
 
+    if (!message || typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({ error: "message is required" });
+    }
+
     const provider = getAiProvider();
     if (!provider) {
       return res
