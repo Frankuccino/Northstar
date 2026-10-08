@@ -1,6 +1,6 @@
 # Northstar AI Docs — Index
 
-> Last updated: 2026-10-01
+> Last updated: 2026-10-08
 > Purpose: which doc to read for what, and what's still true
 
 Eight docs accumulated as the AI work progressed. Some overlap — this page
@@ -16,9 +16,32 @@ says which is authoritative so nobody reads a stale one.
    JSON-in-prompt (concepts, study hints)
 2. `ai-pattern-1-tool-calling-implementation.md` — the design decisions
    behind our implementation
-3. `ai-agent-activity-streaming.md` — current state and next steps
+3. `ai-agent-activity-streaming.md` — the response contract, SSE streaming,
+   and the current state of the chat endpoint
+
+**Want the architecture in one read?** `ai-agent-activity-streaming.md`
+covers the live request flow end to end (turns, steps, streaming, errors).
 
 **Debugging a failure?** Jump to `ai-harmony-fix-detail.md`.
+
+---
+
+## Where the code lives
+
+| File | What's in it |
+|---|---|
+| `src/controllers/workspace.controller.ts` | `aiChatHandler` — the whole agent loop: Turn 1 → execute → Turn 2 → optional Turn 3, step emission, SSE frames, response assembly. Also `executeToolCall` (all 6 tools), `buildAiSystemPrompt`, `toolOk`/`toolErr` |
+| `src/services/ai-provider.service.ts` | `GroqProvider.chat()`, `ChatResult` union, tool-call parsing, `parseResponse()` prose fallback, `getAiProvider()` + `__setTestProvider()` test seam |
+| `src/services/workspace.service.ts` | The domain layer the tools call: `createTask`, `moveTask`, `assignTask`, `searchTasks`, `getTasksByProject`, `getAssignableUsers` |
+| `src/routes/workspace.routes.ts` | `POST /workspace/projects/:id/ai/chat` (auth required) |
+| `tests/ai-chat.test.ts` | 96 integration tests |
+| `northstar-web/src/features/workspace/api/ai.api.ts` | `aiChatStream()` SSE client, `AgentStep`/`AiChatResponse` types |
+| `northstar-web/src/features/workspace/components/ai-chat-panel.tsx` | Chat UI, live step rendering |
+
+**Request flow, in one line:** route → `aiChatHandler` → `provider.chat()` returns
+`{kind: "tool_call"}` or `{kind: "text"}` → `executeToolCall` runs the tool and
+returns an envelope → the envelope goes back to the LLM as a `tool` message →
+repeat until text → assemble `{content, steps, changed, ...}`.
 
 ---
 
@@ -31,7 +54,7 @@ says which is authoritative so nobody reads a stale one.
 | `ai-pattern-search-before-mutation.md` | Pattern 2 summary | ✅ current | Pattern 2 quick read |
 | `ai-pattern-2-search-before-mutation-detail.md` | Pattern 2 end-to-end + industry validation | ✅ current | **Pattern 2 reference** |
 | `ai-pattern-3-action-registry.md` | Pattern 3 design | ✅ current | **Pattern 3 design** (not yet built) |
-| `ai-agent-activity-streaming.md` | Response contract + SSE streaming | ✅ current | **Current work** |
+| `ai-agent-activity-streaming.md` | Response contract + SSE streaming | ✅ current | **Chat architecture + current work** |
 | `ai-harmony-fix-detail.md` | Harmony "Tools should have a name!" root cause + fix | ✅ current | **Harmony bug** |
 | `ai-harmony-tools-error-investigation.md` | Same bug, pre-fix analysis | ⚠️ superseded | Historical only |
 
@@ -86,7 +109,7 @@ confusion, delete the investigation — the fix doc plus git history
 | 3. Action Registry | ⬜ Designed, not built | `ai-pattern-3-action-registry.md` |
 | 4. Risk-Gated Confirmation | ⬜ Not started | — |
 | 5. Actor Abstraction | ⬜ Not started | — |
-| — Activity streaming | 🟡 Phase 1 done, Phase 2 next | `ai-agent-activity-streaming.md` |
+| — Activity streaming | ✅ Phases 1–2 done (contract + SSE); Phase 3 polish left | `ai-agent-activity-streaming.md` |
 
 ---
 
@@ -94,6 +117,8 @@ confusion, delete the investigation — the fix doc plus git history
 
 | Commit | Bug | Doc |
 |---|---|---|
+| `677854a` | Rejected actions lost their reason; `changed`/`intent` reported wrongly | — (see commit) |
+| `dfc1190` | WIP-limit rejection returned 500; `hadSearchStep` missed Turn-1 searches | — (see commit) |
 | `06ccc86` | Tool results had six different shapes; `changed` flag lied | `ai-agent-activity-streaming.md` |
 | `5d6a4bc` | Double mutation; lost tools on follow-up turns; unguarded `JSON.parse` | — (see commit) |
 | `52af0d4` | `tool_choice` unset → "Tool choice is none" | `ai-harmony-fix-detail.md` |
@@ -102,21 +127,23 @@ confusion, delete the investigation — the fix doc plus git history
 
 ---
 
-## Testing note
+## Testing
 
-There is no test suite for the AI chat flow. Every bug above was a
-contract or flow bug that an integration test would have caught — the
-double mutation in particular (a request that inserts two rows).
+The AI chat flow has **96 integration tests** in `tests/ai-chat.test.ts`,
+covering the tool envelope contract, error handling, agent steps, SSE
+frames, and the double-mutation regression.
 
-Before Pattern 3 or Phase 2 streaming, add:
-
-- **Tool contract tests** — each tool returns a valid envelope
-- **No-double-mutation test** — `create_task` inserts exactly one row
-- **Provider stub** — inject a fake `AiProvider` so tests never hit Groq.
-  This needs `getAiProvider()` to be injectable, which is worth doing first.
+They run against a **stub provider** — `__setTestProvider()` in
+`ai-provider.service.ts` injects a fake `AiProvider`, so tests never hit
+Groq and stay deterministic.
 
 Harness: `cd northstar-api && npm test` (Vitest + Supertest, real Postgres,
 `SKIP_RATE_LIMIT=true`).
+
+**What the tests do NOT catch:** behavioural gaps that only appear in real
+use. The last three bugs (dropped explanation on a rejected action, wrong
+`changed` on a failed mutation, prose-guessed `intent`) all passed a green
+suite. Manual testing against the live API found them.
 
 **Gotcha:** project ID 1 does not exist. Seeded projects start at 13. Use
 project 46 or 97 in manual tests, or a FK violation surfaces as a confusing
