@@ -480,6 +480,9 @@ export const aiChatHandler = async (
   res: Response,
   next: NextFunction,
 ) => {
+  // Declared outside try so the catch can decide how to report failures —
+  // once SSE headers are sent we can't fall through to error middleware.
+  const streaming = req.body?.stream === true;
   try {
     const { message } = req.body;
     const projectId = Number(req.params.id);
@@ -497,6 +500,45 @@ export const aiChatHandler = async (
 
     const userRole = (req as any).user?.role;
     const userId = (req as any).user?.id;
+
+    // ---- Agent activity (streamed when requested) -------------------------
+    // A "step" is one thing the agent did: a tool call, with its args, result
+    // summary, and duration. Steps are collected for the JSON response and
+    // emitted as SSE frames when the client asks to stream.
+    const steps: AgentStep[] = [];
+
+    const emit = (event: string, data: unknown) => {
+      if (!streaming) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    if (streaming) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders?.();
+    }
+
+    // Emit a running step, then return a finisher that records the result.
+    const beginStep = (tool: string, args: Record<string, unknown>) => {
+      const startedAt = Date.now();
+      emit("step", { tool, args, status: "running" });
+      return (envelope: string) => {
+        const parsed = safeParseEnvelope(envelope, tool);
+        const step: AgentStep = {
+          tool,
+          args,
+          status: parsed.ok ? "done" : "error",
+          summary: parsed.summary,
+          ok: parsed.ok,
+          durationMs: Date.now() - startedAt,
+          at: new Date().toISOString(),
+        };
+        steps.push(step);
+        emit("step", step);
+        return parsed;
+      };
+    };
 
     // Define tools for the LLM
     const tools: AiTool[] = [
@@ -614,8 +656,11 @@ export const aiChatHandler = async (
       console.log("[AI] Tool call:", tc.name, tc.arguments);
 
       // Execute the tool and format result for LLM
+      const finishStep = beginStep(tc.name, tc.arguments);
       const toolResult = await executeToolCall(tc, projectId);
+      finishStep(toolResult);
       toolExecuted = true;
+      if (tc.name === "search_tasks") hadSearchStep = true;
       if (MUTATION_TOOLS.has(tc.name)) mutationExecuted = true;
 
       // Build the conversation for Turn 2: assistant tool_call + tool result
@@ -662,7 +707,10 @@ export const aiChatHandler = async (
             turn2Result.toolCall.arguments?.query ?? "",
           ).trim();
           if (query) {
+            const finishSearch = beginStep("search_tasks", { query });
             const results = await searchTasks(projectId, query);
+            const searchEnvelope = formatSearchResults(results, query);
+            finishSearch(searchEnvelope);
             previousMessages.push({
               role: "assistant" as const,
               content: null,
@@ -680,7 +728,7 @@ export const aiChatHandler = async (
             previousMessages.push({
               role: "tool" as const,
               tool_call_id: turn2Result.toolCallId,
-              content: formatSearchResults(results, query),
+              content: searchEnvelope,
             });
             const turn3Result = await provider.chat({
               systemPrompt: buildAiSystemPrompt(),
@@ -695,7 +743,9 @@ export const aiChatHandler = async (
           // Second tool call that's not search = execute it (e.g. move/assign after search)
           const tc2 = turn2Result.toolCall;
           console.log("[AI] Turn 2 tool call:", tc2.name, tc2.arguments);
+          const finishStep2 = beginStep(tc2.name, tc2.arguments);
           const toolResult2 = await executeToolCall(tc2, projectId);
+          finishStep2(toolResult2);
           toolExecuted = true;
           if (MUTATION_TOOLS.has(tc2.name)) mutationExecuted = true;
           previousMessages.push({
@@ -769,7 +819,7 @@ export const aiChatHandler = async (
       });
     }
 
-    res.json({
+    const payload = {
       content: finalTextResult.content ?? finalTextResult.message,
       message: finalTextResult.message ?? finalTextResult.content ?? "OK",
       intent: finalIntent,
@@ -777,11 +827,60 @@ export const aiChatHandler = async (
       executed: mutationExecuted || (executionResult?.ok ?? false),
       changed: mutationExecuted || (executionResult?.ok ?? false),
       hadSearchStep,
-    });
-  } catch (err) {
+      steps,
+    };
+
+    if (streaming) {
+      // Terminal frame mirrors the JSON contract, then close the stream.
+      emit("done", payload);
+      return res.end();
+    }
+
+    res.json(payload);
+  } catch (err: any) {
+    // On a live SSE stream, headers are already sent — an error middleware
+    // can't produce a JSON response, so emit an error frame and close.
+    if (streaming && res.headersSent) {
+      res.write(
+        `event: error\ndata: ${JSON.stringify({
+          code: "INTERNAL",
+          message: err?.message ?? "Something went wrong.",
+        })}\n\n`,
+      );
+      return res.end();
+    }
     next(err);
   }
 };
+
+export interface AgentStep {
+  tool: string;
+  args: Record<string, unknown>;
+  status: "running" | "done" | "error";
+  summary?: string;
+  ok?: boolean;
+  durationMs?: number;
+  at?: string;
+}
+
+// Parse a tool-result envelope. Tool results are JSON strings produced by
+// toolOk()/toolErr(); anything unparseable is surfaced as an error step rather
+// than throwing, so one bad tool can't kill the whole request.
+function safeParseEnvelope(
+  raw: string,
+  tool: string,
+): { ok: boolean; summary: string; data?: any } {
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      ok: parsed.ok !== false,
+      summary: typeof parsed.summary === "string" ? parsed.summary : "",
+      data: parsed.data,
+    };
+  } catch {
+    return { ok: false, summary: `Malformed result from ${tool}.` };
+  }
+}
 
 // Execute a single tool call and return a result string for the LLM.
 // All tools (info-gathering AND mutations) execute here. The result is fed back to the LLM.
@@ -807,13 +906,19 @@ async function executeToolCall(
     case "create_task": {
       const title = String(toolCall.arguments.title ?? "").trim();
       if (!title) return toolErr(tool, "MISSING_ARG", "A task title is required.");
-      // createTask returns a single task object, not an array — assign directly
-      const task = await createTask(projectId, title);
-      return toolOk(tool, `Created "${task.title}" in backlog.`, {
-        taskId: task.id,
-        title: task.title,
-        status: task.status,
-      });
+      // createTask enforces the backlog WIP cap and throws when full — that is
+      // a business-rule rejection, not a server fault, so surface it as a tool
+      // error the LLM can explain instead of failing the whole request.
+      try {
+        const task = await createTask(projectId, title);
+        return toolOk(tool, `Created "${task.title}" in backlog.`, {
+          taskId: task.id,
+          title: task.title,
+          status: task.status,
+        });
+      } catch (err: any) {
+        return toolErr(tool, "CREATE_FAILED", err.message);
+      }
     }
     case "move_task": {
       const taskId = Number(toolCall.arguments.taskId);

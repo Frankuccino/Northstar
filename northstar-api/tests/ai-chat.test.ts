@@ -411,6 +411,206 @@ describe("tool error handling", () => {
   });
 });
 
+describe("agent steps", () => {
+  let token: string;
+  let projectId: number;
+
+  beforeEach(async () => {
+    await cleanup();
+    token = await authToken();
+    projectId = await createProject(token);
+  });
+
+  afterEach(async () => {
+    __setTestProvider(null);
+    await cleanup();
+  });
+
+  it("records a step per tool call with summary and duration", async () => {
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "create_task", { title: "Stepped" }),
+        textResult(),
+      ]),
+    );
+
+    const res = await chat(token, projectId, "create Stepped");
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.steps)).toBe(true);
+    expect(res.body.steps).toHaveLength(1);
+
+    const [step] = res.body.steps;
+    expect(step.tool).toBe("create_task");
+    expect(step.status).toBe("done");
+    expect(step.ok).toBe(true);
+    expect(step.summary).toContain("Stepped");
+    expect(typeof step.durationMs).toBe("number");
+  });
+
+  it("records two ordered steps for a chained search then move", async () => {
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "create_task", { title: "Chain Target" }),
+        toolCallResult("tc2", "search_tasks", { query: "Chain Target" }),
+        textResult(),
+      ]),
+    );
+
+    const res = await chat(token, projectId, "create then search");
+
+    expect(res.status).toBe(200);
+    expect(res.body.steps.map((s: any) => s.tool)).toEqual([
+      "create_task",
+      "search_tasks",
+    ]);
+  });
+
+  it("records no steps for a text-only response", async () => {
+    __setTestProvider(stubProvider([textResult("just talking")]));
+
+    const res = await chat(token, projectId, "hello");
+
+    expect(res.status).toBe(200);
+    expect(res.body.steps).toEqual([]);
+  });
+
+  it("records an error step when a tool rejects", async () => {
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "move_task", { taskId: 1, status: "nonsense" }),
+        textResult(),
+      ]),
+    );
+
+    const res = await chat(token, projectId, "move nowhere");
+
+    expect(res.status).toBe(200);
+    const [step] = res.body.steps;
+    expect(step.tool).toBe("move_task");
+    expect(step.status).toBe("error");
+    expect(step.ok).toBe(false);
+  });
+});
+
+describe("SSE streaming", () => {
+  let token: string;
+  let projectId: number;
+
+  beforeEach(async () => {
+    await cleanup();
+    token = await authToken();
+    projectId = await createProject(token);
+  });
+
+  afterEach(async () => {
+    __setTestProvider(null);
+    await cleanup();
+  });
+
+  it("emits step frames then a done frame mirroring the JSON contract", async () => {
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "create_task", { title: "Streamed" }),
+        textResult("Created."),
+      ]),
+    );
+
+    const res = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/chat`)
+      .set("Authorization", `Bearer ${token}`)
+      .set("Accept", "text/event-stream")
+      .send({ message: "create Streamed", stream: true });
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/event-stream");
+
+    const body = res.text;
+    expect(body).toContain("event: step");
+    expect(body).toContain("event: done");
+
+    // A running frame and a terminal frame for the same tool
+    expect(body).toContain('"status":"running"');
+    expect(body).toContain('"status":"done"');
+
+    // The done frame carries the same fields as the JSON response
+    const doneFrame = body
+      .split("\n\n")
+      .find((f: string) => f.startsWith("event: done"));
+    const doneData = JSON.parse(doneFrame!.replace(/^event: done\ndata: /, ""));
+    expect(doneData.changed).toBe(true);
+    expect(doneData.content).toContain("Created");
+    expect(doneData.steps).toHaveLength(1);
+  });
+
+  it("non-streaming requests still get JSON with steps", async () => {
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "list_tasks", {}),
+        textResult("Listed."),
+      ]),
+    );
+
+    const res = await chat(token, projectId, "list tasks");
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("application/json");
+    expect(res.body.steps).toHaveLength(1);
+    expect(res.body.content).toContain("Listed");
+  });
+});
+
+describe("business-rule rejections recover", () => {
+  let token: string;
+  let projectId: number;
+
+  beforeEach(async () => {
+    await cleanup();
+    token = await authToken();
+    projectId = await createProject(token);
+  });
+
+  afterEach(async () => {
+    __setTestProvider(null);
+    await cleanup();
+  });
+
+  it("backlog WIP limit becomes a CREATE_FAILED step, not a 500", async () => {
+    // Fill the backlog column to its cap. wipLimitFor("backlog") is 8, so
+    // create 8 tasks directly, then have the agent attempt a 9th.
+    for (let i = 0; i < 8; i++) {
+      await request(app)
+        .post(`/workspace/${projectId}/tasks`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ title: `Fill ${i}` });
+    }
+
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "create_task", { title: "One Too Many" }),
+        textResult("Could not create."),
+      ]),
+    );
+
+    const res = await chat(token, projectId, "create One Too Many");
+
+    // The request succeeds and the LLM gets a recoverable error
+    expect(res.status).toBe(200);
+    const [step] = res.body.steps;
+    expect(step.tool).toBe("create_task");
+    expect(step.ok).toBe(false);
+    expect(step.status).toBe("error");
+    expect(step.summary).toMatch(/WIP limit/i);
+
+    // And no 9th task was written
+    const taskCount = await db
+      .select({ value: count() })
+      .from(tasks)
+      .where(eq(tasks.projectId, projectId));
+    expect(taskCount[0].value).toBe(8);
+  });
+});
+
 describe("hadSearchStep flag", () => {
   let token: string;
   let projectId: number;

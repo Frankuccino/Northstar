@@ -1,7 +1,7 @@
 # AI Chat: Response Contract + Agent Activity Streaming
 
-> Status: Phase 1 implemented (`06ccc86`) — Phase 2 (SSE streaming) is next
-> Date: 2026-10-01
+> Status: Phase 1 + Phase 2 implemented — token streaming (Phase 3) remains
+> Date: 2026-10-01 (updated 2026-10-08)
 > Prerequisite: Pattern 1 (Tool Calling) — verified working, all 6 tools
 > Related: `ai-pattern-3-action-registry.md`, `ai-harmony-fix-detail.md`
 
@@ -231,11 +231,11 @@ appends one message (`ai-chat-panel.tsx:137`). Streaming requires:
 - ⬜ Drop `intent`/`executed` from the response — *still pending*.
 - ⬜ Update `ai.api.ts` types and the panel to render `steps` — *still pending*.
 
-**Phase 2 — Streaming.**
-- Add `stream: true` branch emitting SSE.
-- Emit `step` events around each tool call and LLM turn.
-- `fetch`-based SSE client in the panel; render steps live.
-- Keep the non-streaming path intact for tests.
+**Phase 2 — Streaming. ✅ DONE**
+- ✅ `stream: true` branch emitting SSE (`step`, `done`, `error` frames).
+- ✅ `step` events around each tool call (running → done/error).
+- ✅ `fetch`-based SSE client (`aiChatStream`) in `ai.api.ts`.
+- ✅ Panel renders steps live; non-streaming path untouched (all tests pass).
 
 **Phase 3 — Polish.**
 - Token streaming (`delta`) for the final prose.
