@@ -183,6 +183,14 @@ describe("POST /workspace/projects/:id/ai/chat", () => {
   });
 
   it("chains search then move and reports changed=true", async () => {
+    // The move must target a real task in a legal transition, otherwise the
+    // tool legitimately fails and changed is false.
+    const created = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Test Task" });
+    const taskId = created.body.id;
+
     __setTestProvider(
       stubProvider([
         // Turn 1: search
@@ -195,7 +203,7 @@ describe("POST /workspace/projects/:id/ai/chat", () => {
         {
           kind: "tool_call",
           toolCallId: "tc2",
-          toolCall: { name: "move_task", arguments: { taskId: 1, status: "ai_drafting" } },
+          toolCall: { name: "move_task", arguments: { taskId, status: "ai_drafting" } },
         },
         // Turn 3: final text
         {
@@ -215,6 +223,31 @@ describe("POST /workspace/projects/:id/ai/chat", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.changed).toBe(true);
+  });
+
+  it("reports changed=false when a mutation is attempted but rejected", async () => {
+    // Backlog -> ready is an illegal transition. The tool fails, so the board
+    // did not change and the client must not refetch.
+    const created = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Stuck Task" });
+    const taskId = created.body.id;
+
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "move_task", { taskId, status: "ready" }),
+        textResult("That move isn't allowed."),
+      ]),
+    );
+
+    const res = await chat(token, projectId, "move Stuck Task to ready");
+
+    expect(res.status).toBe(200);
+    expect(res.body.changed).toBe(false);
+    expect(res.body.steps[0].ok).toBe(false);
+    // And the intent reflects the tool that ran, not prose keyword-matching
+    expect(res.body.intent).toBe("move_task");
   });
 
   it("returns 400 for missing message", async () => {
@@ -608,6 +641,70 @@ describe("business-rule rejections recover", () => {
       .from(tasks)
       .where(eq(tasks.projectId, projectId));
     expect(taskCount[0].value).toBe(8);
+  });
+});
+
+describe("turn-cap recovery", () => {
+  let token: string;
+  let projectId: number;
+
+  beforeEach(async () => {
+    await cleanup();
+    token = await authToken();
+    projectId = await createProject(token);
+  });
+
+  afterEach(async () => {
+    __setTestProvider(null);
+    await cleanup();
+  });
+
+  it("asks for a prose summary when the loop ends on a tool call", async () => {
+    // Simulates the real failure: search succeeds, then the move is rejected
+    // and the LLM tries to call another tool on the final turn. The provider
+    // is scripted so every turn is a tool call until the summary request,
+    // which has no tools and must return text.
+    let sawToolsOnSummary = true;
+    const provider: AiProvider = {
+      async chat(params) {
+        if (!params.tools?.length) {
+          sawToolsOnSummary = false;
+          return textResult("The move was rejected: backlog cannot go to ready.");
+        }
+        return toolCallResult(`tc${Math.random()}`, "move_task", {
+          taskId: 1,
+          status: "ready",
+        });
+      },
+    };
+    __setTestProvider(provider);
+
+    const res = await chat(token, projectId, "move something to ready");
+
+    expect(res.status).toBe(200);
+    // The user gets the real reason, not the generic fallback
+    expect(res.body.content).toContain("rejected");
+    expect(res.body.content).not.toContain("wasn't able to complete that");
+    // And the recovery request was made without tools
+    expect(sawToolsOnSummary).toBe(false);
+  });
+
+  it("falls back gracefully if the summary request also fails", async () => {
+    const provider: AiProvider = {
+      async chat(params) {
+        if (!params.tools?.length) throw new Error("provider exploded");
+        return toolCallResult(`tc${Math.random()}`, "move_task", {
+          taskId: 1,
+          status: "ready",
+        });
+      },
+    };
+    __setTestProvider(provider);
+
+    const res = await chat(token, projectId, "move something to ready");
+
+    expect(res.status).toBe(200);
+    expect(res.body.content).toContain("wasn't able to complete that");
   });
 });
 

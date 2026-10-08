@@ -639,6 +639,8 @@ export const aiChatHandler = async (
     let finalResult: ChatResult = turn1Result;
     let hadSearchStep = false;
     let toolExecuted = false;
+    // The most recent tool the agent ran — the authoritative intent.
+    let lastToolName: string | null = null;
     // Only mutations should tell the client to refetch the board. Read-only
     // tools (search/list/help) leave the board untouched.
     let mutationExecuted = false;
@@ -658,10 +660,13 @@ export const aiChatHandler = async (
       // Execute the tool and format result for LLM
       const finishStep = beginStep(tc.name, tc.arguments);
       const toolResult = await executeToolCall(tc, projectId);
-      finishStep(toolResult);
+      const parsed = finishStep(toolResult);
       toolExecuted = true;
+      lastToolName = tc.name;
       if (tc.name === "search_tasks") hadSearchStep = true;
-      if (MUTATION_TOOLS.has(tc.name)) mutationExecuted = true;
+      // Only a SUCCESSFUL mutation changes the board — an attempted-but-rejected
+      // move must not trigger a refetch or report changed:true.
+      if (MUTATION_TOOLS.has(tc.name) && parsed.ok) mutationExecuted = true;
 
       // Build the conversation for Turn 2: assistant tool_call + tool result
       // Groq's Harmony tokenizer needs the assistant tool_call BEFORE the tool result
@@ -745,9 +750,10 @@ export const aiChatHandler = async (
           console.log("[AI] Turn 2 tool call:", tc2.name, tc2.arguments);
           const finishStep2 = beginStep(tc2.name, tc2.arguments);
           const toolResult2 = await executeToolCall(tc2, projectId);
-          finishStep2(toolResult2);
+          const parsed2 = finishStep2(toolResult2);
           toolExecuted = true;
-          if (MUTATION_TOOLS.has(tc2.name)) mutationExecuted = true;
+          lastToolName = tc2.name;
+          if (MUTATION_TOOLS.has(tc2.name) && parsed2.ok) mutationExecuted = true;
           previousMessages.push({
             role: "assistant" as const,
             content: null,
@@ -788,13 +794,61 @@ export const aiChatHandler = async (
     if (finalResult.kind === "text") {
       finalTextResult = finalResult;
     } else {
-      // Tool call at the end — shouldn't happen, but handle gracefully
-      finalTextResult = {
-        content: "I wasn't able to complete that. Please try a different request.",
-        message: "I wasn't able to complete that. Please try a different request.",
-        intent: "unknown",
-        payload: {},
-      };
+      // The loop ended on a tool call — the LLM wanted to act again but we've
+      // hit the turn cap. Ask once more with no tools so it must reply in
+      // prose, explaining what it managed to do and why it stopped. Without
+      // this, the user gets a generic failure message that discards a real
+      // reason (e.g. a rejected state-machine transition).
+      try {
+        previousMessages.push({
+          role: "assistant" as const,
+          content: null,
+          tool_calls: [
+            {
+              id: finalResult.toolCallId,
+              type: "function" as const,
+              function: {
+                name: finalResult.toolCall.name,
+                arguments: JSON.stringify(finalResult.toolCall.arguments),
+              },
+            },
+          ],
+        });
+        previousMessages.push({
+          role: "tool" as const,
+          tool_call_id: finalResult.toolCallId,
+          content: toolErr(
+            finalResult.toolCall.name,
+            "STEP_LIMIT",
+            "No further tool calls are available. Summarize what happened and what the user can try next.",
+          ),
+        });
+
+        const summary = await provider.chat({
+          systemPrompt: buildAiSystemPrompt(),
+          userMessage: message,
+          previousMessages,
+        });
+
+        finalTextResult =
+          summary.kind === "text"
+            ? summary
+            : {
+                content:
+                  "I wasn't able to complete that. Please try a different request.",
+                message:
+                  "I wasn't able to complete that. Please try a different request.",
+                intent: "unknown",
+                payload: {},
+              };
+      } catch {
+        finalTextResult = {
+          content: "I wasn't able to complete that. Please try a different request.",
+          message: "I wasn't able to complete that. Please try a different request.",
+          intent: "unknown",
+          payload: {},
+        };
+      }
     }
 
     // Execute the final action (if actionable)
@@ -802,7 +856,13 @@ export const aiChatHandler = async (
     // Without this guard, parseResponse() keyword-matches the LLM's confirmation
     // prose (e.g. "Your task has been created") and re-runs the mutation.
     let executionResult = null;
-    const finalIntent = finalTextResult.intent;
+    // When a tool ran, the intent is whatever tool that was. parseResponse()
+    // guesses intent by keyword-matching prose, which produces nonsense once
+    // the LLM writes an explanation ("you could also create a new task" was
+    // being reported as intent: create_task).
+    const finalIntent = toolExecuted
+      ? lastToolName ?? "unknown"
+      : finalTextResult.intent;
     if (
       !toolExecuted &&
       finalIntent !== "help" &&
