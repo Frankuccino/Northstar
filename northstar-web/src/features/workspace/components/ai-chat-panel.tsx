@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { aiChat, type AiMessage } from "../api/ai.api";
+import { aiChatStream, type AgentStep, type AiMessage } from "../api/ai.api";
 
 interface Position {
   x: number;
@@ -71,15 +71,21 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     setDockPosition(position);
   };
 
-  const addAssistantMessage = (content: string, action?: { type: string; result: string }) => {
+  const addAssistantMessage = (
+    content: string,
+    action?: { type: string; result: string },
+    steps?: AgentStep[],
+  ) => {
     const msg: AiMessage = {
       id: crypto.randomUUID(),
       role: "assistant",
       content,
       timestamp: new Date(),
       action,
+      steps,
     };
     setMessages((prev) => [...prev, msg]);
+    return msg.id;
   };
 
   const handleCommand = (cmd: string): boolean => {
@@ -133,11 +139,57 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
 
     try {
       console.log("[AI] sending to /ai/chat:", userInput);
-      const data = await aiChat(id, userInput);
 
-      addAssistantMessage(
-        data.content,
-        { type: data.intent, result: data.changed ? "success" : "info" }
+      // Stream so tool activity shows as it happens. Steps accumulate on a
+      // placeholder message that gets replaced once the turn completes.
+      const placeholderId = crypto.randomUUID();
+      const collected: AgentStep[] = [];
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: placeholderId,
+          role: "assistant",
+          content: "",
+          timestamp: new Date(),
+          steps: [],
+        },
+      ]);
+
+      const data = await aiChatStream(id, userInput, {
+        onStep: (step) => {
+          // A tool emits a running frame then a terminal frame for the same
+          // call — replace rather than append so the row updates in place.
+          const idx = collected.findIndex(
+            (s) => s.tool === step.tool && s.status === "running",
+          );
+          if (step.status === "running") collected.push(step);
+          else if (idx !== -1) collected[idx] = step;
+          else collected.push(step);
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === placeholderId ? { ...m, steps: [...collected] } : m,
+            ),
+          );
+        },
+      });
+
+      // Replace the placeholder with the final message.
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === placeholderId
+            ? {
+                ...m,
+                content: data.content,
+                action: {
+                  type: data.intent,
+                  result: data.changed ? "success" : "info",
+                },
+                steps: data.steps ?? collected,
+              }
+            : m,
+        ),
       );
 
       // Only refetch when a mutation actually ran — read-only requests
@@ -308,6 +360,33 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
                   : "bg-muted text-foreground"
               }`}
             >
+              {msg.steps && msg.steps.length > 0 && (
+                <div className="mb-1.5 space-y-0.5 border-l-2 border-border/50 pl-2">
+                  {msg.steps.map((step, i) => (
+                    <div
+                      key={`${step.tool}-${i}`}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                    >
+                      {step.status === "running" ? (
+                        <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+                      ) : step.ok ? (
+                        <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      ) : (
+                        <XCircle className="h-3 w-3 shrink-0 text-destructive" />
+                      )}
+                      <span className="font-mono text-[11px]">{step.tool}</span>
+                      {step.summary && (
+                        <span className="truncate opacity-70">{step.summary}</span>
+                      )}
+                      {step.durationMs != null && (
+                        <span className="ml-auto shrink-0 tabular-nums opacity-50">
+                          {step.durationMs}ms
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               {msg.role === "assistant" ? (
                 <MarkdownText content={msg.content} />
               ) : (
