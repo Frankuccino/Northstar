@@ -16,11 +16,13 @@ says which is authoritative so nobody reads a stale one.
    JSON-in-prompt (concepts, study hints)
 2. `ai-pattern-1-tool-calling-implementation.md` — the design decisions
    behind our implementation
-3. `ai-agent-activity-streaming.md` — the response contract, SSE streaming,
+3. `kanban-state-machine.md` — the domain rules the AI's tools are bound by
+4. `ai-agent-activity-streaming.md` — the response contract, SSE streaming,
    and the current state of the chat endpoint
 
 **Want the architecture in one read?** `ai-agent-activity-streaming.md`
 covers the live request flow end to end (turns, steps, streaming, errors).
+**Want to know why the AI refused?** `kanban-state-machine.md`.
 
 **Debugging a failure?** Jump to `ai-harmony-fix-detail.md`.
 
@@ -55,6 +57,7 @@ repeat until text → assemble `{content, steps, changed, ...}`.
 | `ai-pattern-2-search-before-mutation-detail.md` | Pattern 2 end-to-end + industry validation | ✅ current | **Pattern 2 reference** |
 | `ai-pattern-3-action-registry.md` | Pattern 3 design | ✅ current | **Pattern 3 design** (not yet built) |
 | `ai-agent-activity-streaming.md` | Response contract + SSE streaming | ✅ current | **Chat architecture + current work** |
+| `kanban-state-machine.md` | Transitions, WIP limits, AI safety boundary | ✅ current | **Domain rules** |
 | `ai-harmony-fix-detail.md` | Harmony "Tools should have a name!" root cause + fix | ✅ current | **Harmony bug** |
 | `ai-harmony-tools-error-investigation.md` | Same bug, pre-fix analysis | ⚠️ superseded | Historical only |
 
