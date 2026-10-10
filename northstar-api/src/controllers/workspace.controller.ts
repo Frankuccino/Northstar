@@ -47,6 +47,12 @@ import {
 import { registerAiClient } from "../services/ai-client.service.js";
 import { getAiProvider } from "../services/ai-provider.service.js";
 import {
+  getToolDefinitions,
+  getSystemPromptEntries,
+  executeAction,
+  type ActionContext,
+} from "../services/ai-action-registry.js";
+import {
   listTasksQuerySchema,
   listInvitationsQuerySchema,
 } from "../schemas/workspace.schema.js";
@@ -540,92 +546,8 @@ export const aiChatHandler = async (
       };
     };
 
-    // Define tools for the LLM
-    const tools: AiTool[] = [
-      {
-        name: "search_tasks",
-        description:
-          "Search for tasks by title or description. Use this to find a task by name before using move_task or assign_task.",
-        parameters: {
-          type: "object",
-          properties: {
-            query: { type: "string", description: "Search query" },
-          },
-          required: ["query"],
-        },
-      },
-      {
-        name: "create_task",
-        description: "Create a new task in the project.",
-        parameters: {
-          type: "object",
-          properties: {
-            title: { type: "string", description: "Task title" },
-            status: {
-              type: "string",
-              description:
-                "Initial status (backlog, ai_drafting, ready, in_progress, needs_revision, validated, done)",
-            },
-          },
-          required: ["title"],
-        },
-      },
-      {
-        name: "move_task",
-        description: "Move a task to a different column.",
-        parameters: {
-          type: "object",
-          properties: {
-            taskId: {
-              type: "integer",
-              description: "The ID of the task to move",
-            },
-            status: {
-              type: "string",
-              enum: [
-                "backlog",
-                "ai_drafting",
-                "ready",
-                "in_progress",
-                "needs_revision",
-                "validated",
-                "done",
-              ],
-              description: "Target column status",
-            },
-          },
-          required: ["taskId", "status"],
-        },
-      },
-      {
-        name: "assign_task",
-        description: "Assign a task to a team member.",
-        parameters: {
-          type: "object",
-          properties: {
-            taskId: {
-              type: "integer",
-              description: "The ID of the task to assign",
-            },
-            assigneeName: {
-              type: "string",
-              description: "Name of the person to assign",
-            },
-          },
-          required: ["taskId", "assigneeName"],
-        },
-      },
-      {
-        name: "list_tasks",
-        description: "List all tasks in the project.",
-        parameters: { type: "object", properties: {} },
-      },
-      {
-        name: "help",
-        description: "Show help information about what you can do.",
-        parameters: { type: "object", properties: {} },
-      },
-    ];
+    // Define tools for the LLM — sourced from the action registry
+    const tools = getToolDefinitions();
 
     // Turn 1: Get initial AI response (may be text or tool call)
     const turn1Result = await provider.chat({
@@ -659,7 +581,7 @@ export const aiChatHandler = async (
 
       // Execute the tool and format result for LLM
       const finishStep = beginStep(tc.name, tc.arguments);
-      const toolResult = await executeToolCall(tc, projectId);
+      const toolResult = await executeAction(tc.name, tc.arguments, { projectId, userId, userRole });
       const parsed = finishStep(toolResult);
       toolExecuted = true;
       lastToolName = tc.name;
@@ -749,7 +671,7 @@ export const aiChatHandler = async (
           const tc2 = turn2Result.toolCall;
           console.log("[AI] Turn 2 tool call:", tc2.name, tc2.arguments);
           const finishStep2 = beginStep(tc2.name, tc2.arguments);
-          const toolResult2 = await executeToolCall(tc2, projectId);
+          const toolResult2 = await executeAction(tc2.name, tc2.arguments, { projectId, userId, userRole });
           const parsed2 = finishStep2(toolResult2);
           toolExecuted = true;
           lastToolName = tc2.name;
@@ -942,165 +864,6 @@ function safeParseEnvelope(
   }
 }
 
-// Execute a single tool call and return a result string for the LLM.
-// All tools (info-gathering AND mutations) execute here. The result is fed back to the LLM.
-// executeAiIntent is only used for the fallback text-response path (parseResponse).
-async function executeToolCall(
-  toolCall: { name: string; arguments: Record<string, unknown> },
-  projectId: number,
-): Promise<string> {
-  const tool = toolCall.name;
-  switch (tool) {
-    case "search_tasks": {
-      const query = String(toolCall.arguments.query ?? "").trim();
-      if (!query) return toolErr(tool, "MISSING_ARG", "No search query provided.");
-      const results = await searchTasks(projectId, query);
-      return toolOk(
-        tool,
-        results.length === 0
-          ? `No tasks matched "${query}".`
-          : `Found ${results.length} task${results.length === 1 ? "" : "s"} matching "${query}".`,
-        { query, count: results.length, tasks: summarizeTasks(results) },
-      );
-    }
-    case "create_task": {
-      const title = String(toolCall.arguments.title ?? "").trim();
-      if (!title) return toolErr(tool, "MISSING_ARG", "A task title is required.");
-      // createTask enforces the backlog WIP cap and throws when full — that is
-      // a business-rule rejection, not a server fault, so surface it as a tool
-      // error the LLM can explain instead of failing the whole request.
-      try {
-        const task = await createTask(projectId, title);
-        return toolOk(tool, `Created "${task.title}" in backlog.`, {
-          taskId: task.id,
-          title: task.title,
-          status: task.status,
-        });
-      } catch (err: any) {
-        return toolErr(tool, "CREATE_FAILED", err.message);
-      }
-    }
-    case "move_task": {
-      const taskId = Number(toolCall.arguments.taskId);
-      const status = String(toolCall.arguments.status ?? "");
-      if (!Number.isFinite(taskId))
-        return toolErr(tool, "MISSING_ARG", "A numeric taskId is required.");
-      if (!TASK_STATUSES.includes(status as any))
-        return toolErr(
-          tool,
-          "INVALID_STATUS",
-          `Invalid status "${status}". Must be one of: ${TASK_STATUSES.join(", ")}.`,
-        );
-      try {
-        const updated = await moveTask(taskId, status as any);
-        return toolOk(tool, `Moved "${updated.title}" to ${updated.status}.`, {
-          taskId: updated.id,
-          title: updated.title,
-          status: updated.status,
-        });
-      } catch (err: any) {
-        return toolErr(tool, "MOVE_FAILED", err.message);
-      }
-    }
-    case "assign_task": {
-      const taskId = Number(toolCall.arguments.taskId);
-      const assigneeName = String(toolCall.arguments.assigneeName ?? "").trim();
-      if (!Number.isFinite(taskId))
-        return toolErr(tool, "MISSING_ARG", "A numeric taskId is required.");
-      if (!assigneeName)
-        return toolErr(tool, "MISSING_ARG", "An assignee name is required.");
-      try {
-        const users = await getAssignableUsers(projectId);
-        const user = users.find(
-          (u: any) => u.name.toLowerCase() === assigneeName.toLowerCase(),
-        );
-        if (!user)
-          return toolErr(
-            tool,
-            "USER_NOT_FOUND",
-            `No project member named "${assigneeName}".`,
-            { availableUsers: users.map((u: any) => u.name) },
-          );
-        const updated = await assignTask(taskId, 0, user.id);
-        return toolOk(tool, `Assigned "${updated.title}" to ${user.name}.`, {
-          taskId: updated.id,
-          title: updated.title,
-          assignee: user.name,
-        });
-      } catch (err: any) {
-        return toolErr(tool, "ASSIGN_FAILED", err.message);
-      }
-    }
-    case "list_tasks": {
-      const allTasks = await getTasksByProject(projectId);
-      return toolOk(
-        tool,
-        allTasks.length === 0
-          ? "The board has no tasks."
-          : `Listed ${allTasks.length} task${allTasks.length === 1 ? "" : "s"}.`,
-        { count: allTasks.length, tasks: summarizeTasks(allTasks) },
-      );
-    }
-    case "help": {
-      return toolOk(tool, "Returned usage help.", {
-        usage: [
-          "Create a task called Fix bug",
-          "Move Fix bug to done",
-          "Assign Fix bug to John",
-          "Search for bug",
-          "List all tasks",
-        ],
-      });
-    }
-    default:
-      return toolErr(tool, "UNKNOWN_TOOL", `Unknown tool: ${tool}`);
-  }
-}
-
-const TASK_STATUSES = [
-  "backlog",
-  "ai_drafting",
-  "ready",
-  "in_progress",
-  "needs_revision",
-  "validated",
-  "done",
-] as const;
-
-function summarizeTasks(tasks: any[]) {
-  return tasks.map((t: any) => ({
-    id: t.id,
-    title: t.title,
-    status: t.status,
-    priority: t.priority,
-  }));
-}
-
-// Every tool returns the same envelope so the LLM, the API response, and the
-// future streaming layer all read one shape instead of six ad-hoc ones.
-function toolOk(
-  tool: string,
-  summary: string,
-  data?: Record<string, unknown>,
-): string {
-  return JSON.stringify({ ok: true, tool, summary, ...(data ? { data } : {}) });
-}
-
-function toolErr(
-  tool: string,
-  code: string,
-  message: string,
-  data?: Record<string, unknown>,
-): string {
-  return JSON.stringify({
-    ok: false,
-    tool,
-    summary: message,
-    error: { code, message },
-    ...(data ? { data } : {}),
-  });
-}
-
 function formatSearchResults(results: any[], query?: string): string {
   const q = query?.trim();
   if (results.length === 0) {
@@ -1128,17 +891,36 @@ function formatSearchResults(results: any[], query?: string): string {
   );
 }
 
+function toolOk(
+  tool: string,
+  summary: string,
+  data?: Record<string, unknown>,
+): string {
+  return JSON.stringify({ ok: true, tool, summary, ...(data ? { data } : {}) });
+}
+
+function toolErr(
+  tool: string,
+  code: string,
+  message: string,
+  data?: Record<string, unknown>,
+): string {
+  return JSON.stringify({
+    ok: false,
+    tool,
+    summary: message,
+    error: { code, message },
+    ...(data ? { data } : {}),
+  });
+}
+
 function buildAiSystemPrompt(): string {
+  const toolEntries = getSystemPromptEntries().join("\n");
   return `You are an AI assistant for a Kanban project management tool. Help users manage tasks through natural language.
 
 You have access to the following tools. Use them to help the user:
 
-- search_tasks(query): Search for tasks by title or description. Use this BEFORE move_task or assign_task when the user references a task by name.
-- create_task(title, status?): Create a new task.
-- move_task(taskId, status): Move a task to a different column. status must be one of: backlog, ai_drafting, ready, in_progress, needs_revision, validated, done.
-- assign_task(taskId, assigneeName): Assign a task to a team member by name.
-- list_tasks(): List all tasks in the project.
-- help(): Show help information.
+${toolEntries}
 
 Use search_tasks first when the user mentions a task by name. Then use the task ID from the search results in your move_task or assign_task call. Respond with tool calls when you need to act, or with text for help/unknown/fallback responses.`;
 }
