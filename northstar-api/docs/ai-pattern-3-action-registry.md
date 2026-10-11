@@ -1,8 +1,8 @@
 # Pattern 3: Action Registry — Implementation Reasoning
 
 > Companion to the Pattern 1 implementation doc
-> Status: Phase 3 — Design (pending implementation)
-> Date: 2026-09-30
+> Status: Phase 3 — Implemented
+> Date: 2026-09-30 (updated 2026-10-10)
 > Prerequisite: Pattern 1 (Tool Calling) must be working — create_task verified, move_task needs backend restart to confirm tool_choice fix
 
 ---
