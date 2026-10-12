@@ -55,7 +55,8 @@ repeat until text → assemble `{content, steps, changed, ...}`.
 | `ai-pattern-1-tool-calling-implementation.md` | Pattern 1 design decisions | ✅ current | **Pattern 1 design** |
 | `ai-pattern-search-before-mutation.md` | Pattern 2 summary | ✅ current | Pattern 2 quick read |
 | `ai-pattern-2-search-before-mutation-detail.md` | Pattern 2 end-to-end + industry validation | ✅ current | **Pattern 2 reference** |
-| `ai-pattern-3-action-registry.md` | Pattern 3 design | ✅ current | **Pattern 3 design** (not yet built) |
+| `ai-pattern-3-action-registry.md` | Pattern 3 design | ✅ current | **Pattern 3 design** (implemented) |
+| `ai-pattern-4-risk-gated-confirmation.md` | Pattern 4 design — confirmation gate for destructive actions | ✅ current | **Pattern 4 design** (not yet built) |
 | `ai-agent-activity-streaming.md` | Response contract + SSE streaming | ✅ current | **Chat architecture + current work** |
 | `kanban-state-machine.md` | Transitions, WIP limits, AI safety boundary | ✅ current | **Domain rules** |
 | `ai-harmony-fix-detail.md` | Harmony "Tools should have a name!" root cause + fix | ✅ current | **Harmony bug** |
@@ -109,8 +110,8 @@ confusion, delete the investigation — the fix doc plus git history
 |---|---|---|
 | 1. Tool Calling | ✅ Implemented, all 6 tools verified | `ai-pattern-1-tool-calling-implementation.md` |
 | 2. Search Before Mutation | ✅ Implemented | `ai-pattern-2-search-before-mutation-detail.md` |
-| 3. Action Registry | ⬜ Designed, not built | `ai-pattern-3-action-registry.md` |
-| 4. Risk-Gated Confirmation | ⬜ Not started | — |
+| 3. Action Registry | ✅ Implemented | `ai-pattern-3-action-registry.md` |
+| 4. Risk-Gated Confirmation | ⬜ Designed, not built | `ai-pattern-4-risk-gated-confirmation.md` |
 | 5. Actor Abstraction | ⬜ Not started | — |
 | — Activity streaming | ✅ Phases 1–2 done (contract + SSE); Phase 3 polish left | `ai-agent-activity-streaming.md` |
 
