@@ -1,5 +1,5 @@
 import type { AiTool } from "./ai-provider.service.js";
-import { createTask, moveTask, assignTask, searchTasks, getTasksByProject, getAssignableUsers } from "./workspace.service.js";
+import { createTask, moveTask, assignTask, searchTasks, getTasksByProject, getAssignableUsers, deleteTask } from "./workspace.service.js";
 
 // ---- Types -----------------------------------------------------------------
 
@@ -20,6 +20,12 @@ export interface ActionEntry {
   parameters: Record<string, any>;
   /** Human-readable label for the system prompt */
   promptLabel: string;
+  /**
+   * Destructive actions set this. The controller returns a pending step
+   * instead of executing, and the handler runs only after human approval.
+   * Enforced in the dispatch path so a new risky action can't forget it.
+   */
+  requiresConfirmation?: boolean;
   handler: ActionHandler;
 }
 
@@ -236,6 +242,40 @@ export const actions: Record<string, ActionEntry> = {
           : `Listed ${allTasks.length} task${allTasks.length === 1 ? "" : "s"}.`,
         { count: allTasks.length, tasks: summarizeTasks(allTasks) },
       );
+    },
+  },
+
+  delete_task: {
+    name: "delete_task",
+    description:
+      "Permanently delete a task. Call this whenever the user asks to delete a task — the system will ask them to confirm before anything is removed.",
+    parameters: {
+      type: "object",
+      properties: {
+        taskId: {
+          type: "integer",
+          description: "The ID of the task to delete",
+        },
+      },
+      required: ["taskId"],
+    },
+    promptLabel: "Permanently delete a task (the system asks the user to confirm)",
+    // Destructive: the controller gates this behind human approval.
+    requiresConfirmation: true,
+    handler: async (args, ctx) => {
+      const taskId = Number(args.taskId);
+      if (!Number.isFinite(taskId))
+        return toolErr("delete_task", "MISSING_ARG", "A numeric taskId is required.");
+      try {
+        // Reuse the existing service — the AI gets no special privilege, and
+        // canDeleteTask still governs whether this actor may delete.
+        const deleted = await deleteTask({ id: ctx.userId, role: ctx.userRole as any }, taskId);
+        return toolOk("delete_task", `Deleted task ${deleted.id}.`, {
+          taskId: deleted.id,
+        });
+      } catch (err: any) {
+        return toolErr("delete_task", "DELETE_FAILED", err.message);
+      }
     },
   },
 

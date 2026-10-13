@@ -32,3 +32,34 @@ export const aiActions = pgTable("ai_actions", {
   ip: text("ip"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// ---- Risk-gated confirmation ----------------------------------------------
+// A destructive action the agent has proposed but not executed. It survives
+// between the request that creates it and the one that approves it, so the
+// human can decide. Durable rather than in-memory: the server may restart
+// (Render spins the free tier down) between the two requests.
+
+export const PENDING_ACTION_STATUSES = [
+  "pending",
+  "approved",
+  "rejected",
+  "expired",
+] as const satisfies readonly string[];
+export type PendingActionStatus = (typeof PENDING_ACTION_STATUSES)[number];
+
+export const aiPendingActions = pgTable(
+  "ai_pending_actions",
+  {
+    id: text("id").primaryKey(),
+    projectId: integer("project_id").notNull(),
+    actorUserId: integer("actor_user_id").notNull(),
+    actionName: text("action_name").notNull(),
+    args: text("args").notNull(),
+    status: text("status").$type<PendingActionStatus>().notNull().default("pending"),
+    summary: text("summary").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    expiresAt: timestamp("expires_at").notNull(),
+    resolvedAt: timestamp("resolved_at"),
+  },
+  (t) => [index("ai_pending_actions_project_idx").on(t.projectId)],
+);

@@ -50,8 +50,15 @@ import {
   getToolDefinitions,
   getSystemPromptEntries,
   executeAction,
+  getAction,
   type ActionContext,
 } from "../services/ai-action-registry.js";
+import {
+  createPendingAction,
+  getPendingAction,
+  resolvePendingAction,
+  expireStalePendingActions,
+} from "../services/ai-pending-actions.service.js";
 import {
   listTasksQuerySchema,
   listInvitationsQuerySchema,
@@ -546,6 +553,49 @@ export const aiChatHandler = async (
       };
     };
 
+    // The gate. Destructive actions are deferred for human approval instead of
+    // executed. It lives here in the dispatch path rather than inside each
+    // handler, so a new risky action cannot forget to check it.
+    type DispatchResult =
+      | { kind: "result"; envelope: string; parsed: { ok: boolean; summary: string; data?: any } }
+      | { kind: "pending"; pendingActionId: string; summary: string };
+
+    const dispatchAction = async (
+      name: string,
+      args: Record<string, unknown>,
+    ): Promise<DispatchResult> => {
+      const action = getAction(name);
+
+      if (action?.requiresConfirmation) {
+        const summary = `Delete task ${args.taskId}? This cannot be undone.`;
+        const pending = await createPendingAction({
+          projectId,
+          actorUserId: userId,
+          actionName: name,
+          args,
+          summary,
+        });
+        const step: AgentStep = {
+          tool: name,
+          args,
+          status: "pending_confirmation",
+          summary,
+          pendingActionId: pending.id,
+          expiresAt: pending.expiresAt.toISOString(),
+          at: new Date().toISOString(),
+        };
+        steps.push(step);
+        emit("step", step);
+        return { kind: "pending", pendingActionId: pending.id, summary };
+      }
+
+      const finishStep = beginStep(name, args);
+      const envelope = await executeAction(name, args, { projectId, userId, userRole });
+      return { kind: "result", envelope, parsed: finishStep(envelope) };
+    };
+
+    let awaitingConfirmation: { id: string; summary: string } | null = null;
+
     // Define tools for the LLM — sourced from the action registry
     const tools = getToolDefinitions();
 
@@ -579,43 +629,61 @@ export const aiChatHandler = async (
       const tc = turn1Result.toolCall;
       console.log("[AI] Tool call:", tc.name, tc.arguments);
 
-      // Execute the tool and format result for LLM
-      const finishStep = beginStep(tc.name, tc.arguments);
-      const toolResult = await executeAction(tc.name, tc.arguments, { projectId, userId, userRole });
-      const parsed = finishStep(toolResult);
-      toolExecuted = true;
-      lastToolName = tc.name;
-      if (tc.name === "search_tasks") hadSearchStep = true;
-      // Only a SUCCESSFUL mutation changes the board — an attempted-but-rejected
-      // move must not trigger a refetch or report changed:true.
-      if (MUTATION_TOOLS.has(tc.name) && parsed.ok) mutationExecuted = true;
+      // Dispatch — gated actions return pending instead of executing
+      const dispatched = await dispatchAction(tc.name, tc.arguments);
 
-      // Build the conversation for Turn 2: assistant tool_call + tool result
-      // Groq's Harmony tokenizer needs the assistant tool_call BEFORE the tool result
-      const assistantToolCallMsg = {
-        role: "assistant" as const,
-        content: null,
-        tool_calls: [
-          {
-            id: turn1Result.toolCallId,
-            type: "function" as const,
-            function: {
-              name: tc.name,
-              arguments: JSON.stringify(tc.arguments),
+      if (dispatched.kind === "pending") {
+        // Stop the loop. The action has NOT executed; the human must approve.
+        awaitingConfirmation = {
+          id: dispatched.pendingActionId,
+          summary: dispatched.summary,
+        };
+        finalResult = {
+          kind: "text",
+          content: `${dispatched.summary} Please confirm to proceed.`,
+          message: `${dispatched.summary} Please confirm to proceed.`,
+          intent: tc.name,
+          payload: {},
+        };
+      } else {
+        const { envelope: toolResult, parsed } = dispatched;
+        toolExecuted = true;
+        lastToolName = tc.name;
+        if (tc.name === "search_tasks") hadSearchStep = true;
+        // Only a SUCCESSFUL mutation changes the board — an attempted-but-rejected
+        // move must not trigger a refetch or report changed:true.
+        if (MUTATION_TOOLS.has(tc.name) && parsed.ok) mutationExecuted = true;
+
+        // Build the conversation for Turn 2: assistant tool_call + tool result
+        // Groq's Harmony tokenizer needs the assistant tool_call BEFORE the tool result
+        const assistantToolCallMsg = {
+          role: "assistant" as const,
+          content: null,
+          tool_calls: [
+            {
+              id: turn1Result.toolCallId,
+              type: "function" as const,
+              function: {
+                name: tc.name,
+                arguments: JSON.stringify(tc.arguments),
+              },
             },
-          },
-        ],
-      };
-      previousMessages.push(assistantToolCallMsg);
-      previousMessages.push({
-        role: "tool" as const,
-        tool_call_id: turn1Result.toolCallId,
-        content: toolResult,
-      });
+          ],
+        };
+        previousMessages.push(assistantToolCallMsg);
+        previousMessages.push({
+          role: "tool" as const,
+          tool_call_id: turn1Result.toolCallId,
+          content: toolResult,
+        });
+      }
 
     // Turn 2: Feed tool result back. Tools are re-sent so the LLM can chain a
     // second call (search → move/assign). Safe now that tool_choice is set and
     // every tool result is preceded by its assistant tool_call message.
+    // Skipped entirely when a gated action is awaiting confirmation — the loop
+    // must stop, not continue.
+    if (!awaitingConfirmation) {
       const turn2Result = await provider.chat({
         systemPrompt: buildAiSystemPrompt(),
         userMessage: message,
@@ -706,6 +774,7 @@ export const aiChatHandler = async (
         }
       }
     }
+    }
 
     let finalTextResult: {
       content: string;
@@ -774,9 +843,11 @@ export const aiChatHandler = async (
     }
 
     // Execute the final action (if actionable)
-    // Skip when a tool already executed — the tool path is authoritative.
-    // Without this guard, parseResponse() keyword-matches the LLM's confirmation
-    // prose (e.g. "Your task has been created") and re-runs the mutation.
+    // Skip when a tool already executed, or when a gated action is awaiting
+    // confirmation — in both cases the tool path is authoritative. Without this
+    // guard, parseResponse() keyword-matches the LLM's prose and re-runs the
+    // mutation (or, for a pending action, invents an intent the legacy path
+    // doesn't know).
     let executionResult = null;
     // When a tool ran, the intent is whatever tool that was. parseResponse()
     // guesses intent by keyword-matching prose, which produces nonsense once
@@ -787,6 +858,7 @@ export const aiChatHandler = async (
       : finalTextResult.intent;
     if (
       !toolExecuted &&
+      !awaitingConfirmation &&
       finalIntent !== "help" &&
       finalIntent !== "unknown" &&
       finalIntent !== "list_tasks"
@@ -810,6 +882,10 @@ export const aiChatHandler = async (
       changed: mutationExecuted || (executionResult?.ok ?? false),
       hadSearchStep,
       steps,
+      // Set when a gated action is waiting for the human. The client renders a
+      // confirm prompt; nothing has been mutated yet.
+      awaitingConfirmation: awaitingConfirmation ?? undefined,
+      status: awaitingConfirmation ? "awaiting_confirmation" : "ok",
     };
 
     if (streaming) {
@@ -838,12 +914,87 @@ export const aiChatHandler = async (
 export interface AgentStep {
   tool: string;
   args: Record<string, unknown>;
-  status: "running" | "done" | "error";
+  status: "running" | "done" | "error" | "pending_confirmation";
   summary?: string;
   ok?: boolean;
   durationMs?: number;
   at?: string;
+  /** Present when status is pending_confirmation — the id to approve/reject. */
+  pendingActionId?: string;
+  expiresAt?: string;
 }
+
+// ---- Risk-gated confirmation ------------------------------------------------
+// Approve or reject a pending destructive action. The LLM is deliberately NOT
+// in this loop — the human decides, and the server executes the already-decided
+// action. The model cannot approve itself.
+export const aiConfirmHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { pendingActionId, decision } = req.body ?? {};
+    const projectId = Number(req.params.id);
+    const userId = (req as any).user?.id;
+    const userRole = (req as any).user?.role;
+
+    if (typeof pendingActionId !== "string" || !pendingActionId) {
+      return res.status(400).json({ error: "pendingActionId is required" });
+    }
+    if (decision !== "approve" && decision !== "reject") {
+      return res.status(400).json({ error: "decision must be 'approve' or 'reject'" });
+    }
+
+    // Flip anything past its deadline before reading, so an abandoned prompt is
+    // never treated as still actionable.
+    await expireStalePendingActions();
+
+    const pending = await getPendingAction(pendingActionId);
+    if (!pending) {
+      return res.status(404).json({ error: "Unknown pending action" });
+    }
+    if (pending.status !== "pending") {
+      return res.status(409).json({
+        error:
+          pending.status === "expired"
+            ? "This action has expired"
+            : `This action was already ${pending.status}`,
+      });
+    }
+    if (pending.projectId !== projectId) {
+      return res.status(404).json({ error: "Unknown pending action" });
+    }
+
+    if (decision === "reject") {
+      await resolvePendingAction(pendingActionId, "rejected");
+      return res.json({ executed: false, rejected: true });
+    }
+
+    // Claim it first — a second concurrent approval must not also execute.
+    const claimed = await resolvePendingAction(pendingActionId, "approved");
+    if (!claimed) {
+      return res.status(409).json({ error: "This action was already resolved" });
+    }
+
+    const envelope = await executeAction(pending.actionName, pending.args, {
+      projectId: pending.projectId,
+      userId,
+      userRole,
+    });
+    const parsed = safeParseEnvelope(envelope, pending.actionName);
+
+    res.json({
+      executed: true,
+      ok: parsed.ok,
+      summary: parsed.summary,
+      data: parsed.data,
+      changed: parsed.ok,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 // Parse a tool-result envelope. Tool results are JSON strings produced by
 // toolOk()/toolErr(); anything unparseable is surfaced as an error step rather

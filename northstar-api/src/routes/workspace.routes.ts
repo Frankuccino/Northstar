@@ -46,6 +46,7 @@ import {
   listAiActionsHandler,
   registerAiClientHandler,
   aiChatHandler,
+  aiConfirmHandler,
   getMyInvitationsHandler,
   getLabelsHandler,
   createLabelHandler,
@@ -187,6 +188,7 @@ router.post("/projects/:id/ai/intent", executeAiIntentHandler);
 router.get("/projects/:id/ai/actions", listAiActionsHandler);
 router.post("/projects/:id/ai/clients", registerAiClientHandler);
 router.post("/projects/:id/ai/chat", authenticate, aiChatHandler);
+router.post("/projects/:id/ai/confirm", authenticate, aiConfirmHandler);
 
 // Labels
 router.get("/projects/:id/labels", getLabelsHandler);

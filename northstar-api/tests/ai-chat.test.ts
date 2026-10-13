@@ -708,6 +708,161 @@ describe("turn-cap recovery", () => {
   });
 });
 
+describe("risk-gated confirmation", () => {
+  let token: string;
+  let projectId: number;
+
+  beforeEach(async () => {
+    await cleanup();
+    token = await authToken();
+    projectId = await createProject(token);
+  });
+
+  afterEach(async () => {
+    __setTestProvider(null);
+    await cleanup();
+  });
+
+  async function createRealTask(title: string): Promise<number> {
+    const res = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title });
+    return res.body.id;
+  }
+
+  it("returns pending_confirmation and does NOT delete", async () => {
+    const taskId = await createRealTask("Doomed");
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "delete_task", { taskId }),
+        textResult("Should not reach here."),
+      ]),
+    );
+
+    const res = await chat(token, projectId, "delete Doomed");
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("awaiting_confirmation");
+    expect(res.body.changed).toBe(false);
+    expect(res.body.awaitingConfirmation.id).toBeTruthy();
+    expect(res.body.steps[0].status).toBe("pending_confirmation");
+
+    // THE critical assertion: a pending action must never mutate.
+    const rows = await db
+      .select({ value: count() })
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+    expect(rows[0].value).toBe(1);
+  });
+
+  it("executes on approval and removes the task", async () => {
+    const taskId = await createRealTask("Approve Me");
+    __setTestProvider(
+      stubProvider([toolCallResult("tc1", "delete_task", { taskId }), textResult()]),
+    );
+
+    const pendingRes = await chat(token, projectId, "delete Approve Me");
+    const pendingActionId = pendingRes.body.awaitingConfirmation.id;
+
+    const confirmRes = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/confirm`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ pendingActionId, decision: "approve" });
+
+    expect(confirmRes.status).toBe(200);
+    expect(confirmRes.body.executed).toBe(true);
+    expect(confirmRes.body.changed).toBe(true);
+
+    const rows = await db
+      .select({ value: count() })
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+    expect(rows[0].value).toBe(0);
+  });
+
+  it("leaves the task intact on rejection", async () => {
+    const taskId = await createRealTask("Reject Me");
+    __setTestProvider(
+      stubProvider([toolCallResult("tc1", "delete_task", { taskId }), textResult()]),
+    );
+
+    const pendingRes = await chat(token, projectId, "delete Reject Me");
+    const pendingActionId = pendingRes.body.awaitingConfirmation.id;
+
+    const confirmRes = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/confirm`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ pendingActionId, decision: "reject" });
+
+    expect(confirmRes.status).toBe(200);
+    expect(confirmRes.body.rejected).toBe(true);
+
+    const rows = await db
+      .select({ value: count() })
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+    expect(rows[0].value).toBe(1);
+  });
+
+  it("refuses a second approval of the same action (409)", async () => {
+    const taskId = await createRealTask("Once Only");
+    __setTestProvider(
+      stubProvider([toolCallResult("tc1", "delete_task", { taskId }), textResult()]),
+    );
+
+    const pendingRes = await chat(token, projectId, "delete Once Only");
+    const pendingActionId = pendingRes.body.awaitingConfirmation.id;
+
+    const first = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/confirm`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ pendingActionId, decision: "approve" });
+    expect(first.status).toBe(200);
+
+    const second = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/confirm`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ pendingActionId, decision: "approve" });
+    expect(second.status).toBe(409);
+  });
+
+  it("returns 404 for an unknown pending action", async () => {
+    const res = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/confirm`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ pendingActionId: "not-a-real-id", decision: "approve" });
+
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 400 for a bad decision value", async () => {
+    const res = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/confirm`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ pendingActionId: "x", decision: "maybe" });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("does not gate non-destructive actions", async () => {
+    // create_task has no requiresConfirmation flag — it must execute directly.
+    __setTestProvider(
+      stubProvider([
+        toolCallResult("tc1", "create_task", { title: "Ungated" }),
+        textResult(),
+      ]),
+    );
+
+    const res = await chat(token, projectId, "create Ungated");
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ok");
+    expect(res.body.awaitingConfirmation).toBeUndefined();
+    expect(res.body.changed).toBe(true);
+  });
+});
+
 describe("hadSearchStep flag", () => {
   let token: string;
   let projectId: number;
