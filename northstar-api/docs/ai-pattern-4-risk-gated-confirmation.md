@@ -1,8 +1,8 @@
 # Pattern 4: Risk-Gated Confirmation — Design
 
 > Companion to the Pattern 3 registry doc
-> Status: Design (pending implementation)
-> Date: 2026-10-12
+> Status: Implemented
+> Date: 2026-10-12 (implemented 2026-10-13)
 > Prerequisite: Pattern 3 (Action Registry) — implemented. Pattern 4 is a
 > one-entry addition *because* the registry exists.
 

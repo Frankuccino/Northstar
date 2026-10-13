@@ -111,7 +111,7 @@ confusion, delete the investigation — the fix doc plus git history
 | 1. Tool Calling | ✅ Implemented, all 6 tools verified | `ai-pattern-1-tool-calling-implementation.md` |
 | 2. Search Before Mutation | ✅ Implemented | `ai-pattern-2-search-before-mutation-detail.md` |
 | 3. Action Registry | ✅ Implemented | `ai-pattern-3-action-registry.md` |
-| 4. Risk-Gated Confirmation | ⬜ Designed, not built | `ai-pattern-4-risk-gated-confirmation.md` |
+| 4. Risk-Gated Confirmation | ✅ Implemented (`delete_task` gated) | `ai-pattern-4-risk-gated-confirmation.md` |
 | 5. Actor Abstraction | ⬜ Not started | — |
 | — Activity streaming | ✅ Phases 1–2 done (contract + SSE); Phase 3 polish left | `ai-agent-activity-streaming.md` |
 
@@ -121,6 +121,7 @@ confusion, delete the investigation — the fix doc plus git history
 
 | Commit | Bug | Doc |
 |---|---|---|
+| `57dd3db` | Pattern 4 — destructive actions had no human gate | `ai-pattern-4-risk-gated-confirmation.md` |
 | `677854a` | Rejected actions lost their reason; `changed`/`intent` reported wrongly | — (see commit) |
 | `dfc1190` | WIP-limit rejection returned 500; `hadSearchStep` missed Turn-1 searches | — (see commit) |
 | `06ccc86` | Tool results had six different shapes; `changed` flag lied | `ai-agent-activity-streaming.md` |
