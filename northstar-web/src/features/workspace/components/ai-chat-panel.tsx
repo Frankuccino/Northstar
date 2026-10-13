@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Send, Bot, User, Loader2, CheckCircle2, XCircle, GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { aiChatStream, type AgentStep, type AiMessage } from "../api/ai.api";
+import { aiChatStream, confirmAction, type AgentStep, type AiMessage } from "../api/ai.api";
 
 interface Position {
   x: number;
@@ -117,6 +117,39 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
     return false;
   };
 
+  const handleConfirm = async (
+    messageId: string,
+    pendingActionId: string,
+    decision: "approve" | "reject",
+  ) => {
+    try {
+      const result = await confirmAction(id, pendingActionId, decision);
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                pending: m.pending
+                  ? { ...m.pending, resolved: decision === "approve" ? "approved" : "rejected" }
+                  : undefined,
+                content: result.rejected
+                  ? "Cancelled — nothing was deleted."
+                  : (result.summary ?? m.content),
+              }
+            : m,
+        ),
+      );
+
+      // Only refetch when something actually changed.
+      if (result.changed) onTasksChanged();
+    } catch (err: any) {
+      const msg =
+        err.response?.data?.error ?? "That confirmation is no longer valid.";
+      addAssistantMessage(msg, { type: "error", result: "error" });
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -187,6 +220,12 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
                   result: data.changed ? "success" : "info",
                 },
                 steps: data.steps ?? collected,
+                pending: data.awaitingConfirmation
+                  ? {
+                      id: data.awaitingConfirmation.id,
+                      summary: data.awaitingConfirmation.summary,
+                    }
+                  : undefined,
               }
             : m,
         ),
@@ -391,6 +430,38 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
                 <MarkdownText content={msg.content} />
               ) : (
                 <p className="whitespace-pre-wrap">{msg.content}</p>
+              )}
+              {msg.pending && (
+                <div className="mt-2 flex items-center gap-2">
+                  {msg.pending.resolved ? (
+                    <span className="text-xs opacity-70">
+                      {msg.pending.resolved === "approved" ? "Confirmed" : "Cancelled"}
+                    </span>
+                  ) : (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="h-7 px-2 text-xs"
+                        onClick={() =>
+                          handleConfirm(msg.id, msg.pending!.id, "approve")
+                        }
+                      >
+                        Confirm delete
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() =>
+                          handleConfirm(msg.id, msg.pending!.id, "reject")
+                        }
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  )}
+                </div>
               )}
               {msg.action && (
                 <div className="mt-1 flex items-center gap-1 text-xs opacity-70">

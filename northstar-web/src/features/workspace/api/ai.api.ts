@@ -13,6 +13,8 @@ export interface AiMessage {
   };
   /** Live agent activity — tool calls the assistant made for this turn. */
   steps?: AgentStep[];
+  /** Set when a destructive action is waiting for the user to confirm. */
+  pending?: { id: string; summary: string; resolved?: "approved" | "rejected" };
 }
 
 export interface AiIntentRequest {
@@ -36,11 +38,14 @@ export const executeAiIntent = async (
 export interface AgentStep {
   tool: string;
   args: Record<string, unknown>;
-  status: "running" | "done" | "error";
+  status: "running" | "done" | "error" | "pending_confirmation";
   summary?: string;
   ok?: boolean;
   durationMs?: number;
   at?: string;
+  /** Present when status is pending_confirmation — the id to approve/reject. */
+  pendingActionId?: string;
+  expiresAt?: string;
 }
 
 export interface AiChatResponse {
@@ -53,7 +58,31 @@ export interface AiChatResponse {
   executed: boolean;
   hadSearchStep: boolean;
   steps: AgentStep[];
+  status?: "ok" | "awaiting_confirmation";
+  awaitingConfirmation?: { id: string; summary: string };
 }
+
+export interface ConfirmResult {
+  executed: boolean;
+  rejected?: boolean;
+  ok?: boolean;
+  summary?: string;
+  data?: Record<string, unknown>;
+  changed?: boolean;
+}
+
+/** Approve or reject a pending destructive action. */
+export const confirmAction = async (
+  projectId: number,
+  pendingActionId: string,
+  decision: "approve" | "reject",
+): Promise<ConfirmResult> => {
+  const res = await api.post(`/workspace/projects/${projectId}/ai/confirm`, {
+    pendingActionId,
+    decision,
+  });
+  return res.data;
+};
 
 export const aiChat = async (
   projectId: number,
