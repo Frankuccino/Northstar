@@ -1,12 +1,12 @@
 import type { AiTool } from "./ai-provider.service.js";
 import { createTask, moveTask, assignTask, searchTasks, getTasksByProject, getAssignableUsers, deleteTask } from "./workspace.service.js";
+import type { Actor } from "./workspace/access.js";
 
 // ---- Types -----------------------------------------------------------------
 
 export interface ActionContext {
+  actor: Actor;
   projectId: number;
-  userId: number;
-  userRole: string;
 }
 
 export type ActionHandler = (
@@ -40,6 +40,12 @@ const TASK_STATUSES = [
   "validated",
   "done",
 ] as const;
+
+// Type guard instead of `as any` — a typo like "Ready" is now caught rather
+// than cast away and silently rejected by the state machine at runtime.
+function isTaskStatus(value: string): value is (typeof TASK_STATUSES)[number] {
+  return (TASK_STATUSES as readonly string[]).includes(value);
+}
 
 // ---- Helpers ---------------------------------------------------------------
 
@@ -160,14 +166,14 @@ export const actions: Record<string, ActionEntry> = {
       const status = String(args.status ?? "");
       if (!Number.isFinite(taskId))
         return toolErr("move_task", "MISSING_ARG", "A numeric taskId is required.");
-      if (!TASK_STATUSES.includes(status as any))
+      if (!isTaskStatus(status))
         return toolErr(
           "move_task",
           "INVALID_STATUS",
           `Invalid status "${status}". Must be one of: ${TASK_STATUSES.join(", ")}.`,
         );
       try {
-        const updated = await moveTask(taskId, status as any);
+        const updated = await moveTask(taskId, status);
         return toolOk("move_task", `Moved "${updated.title}" to ${updated.status}.`, {
           taskId: updated.id,
           title: updated.title,
@@ -269,7 +275,7 @@ export const actions: Record<string, ActionEntry> = {
       try {
         // Reuse the existing service — the AI gets no special privilege, and
         // canDeleteTask still governs whether this actor may delete.
-        const deleted = await deleteTask({ id: ctx.userId, role: ctx.userRole as any }, taskId);
+        const deleted = await deleteTask(ctx.actor, taskId);
         return toolOk("delete_task", `Deleted task ${deleted.id}.`, {
           taskId: deleted.id,
         });

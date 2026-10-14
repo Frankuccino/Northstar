@@ -863,6 +863,99 @@ describe("risk-gated confirmation", () => {
   });
 });
 
+describe("actor abstraction", () => {
+  let token: string;
+  let projectId: number;
+
+  beforeEach(async () => {
+    await cleanup();
+    token = await authToken();
+    projectId = await createProject(token);
+  });
+
+  afterEach(async () => {
+    __setTestProvider(null);
+    await cleanup();
+  });
+
+  it("an employee cannot delete via the AI — the real role reaches the check", async () => {
+    // Demote the actor to employee AFTER getting a token, so the JWT still
+    // carries admin while the DB says employee. The service reads the actor
+    // passed in, so this proves the role is threaded rather than assumed.
+    const taskRes = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Protected" });
+    const taskId = taskRes.body.id;
+
+    await db
+      .update(users)
+      .set({ role: "employee" })
+      .where(eq(users.email, TEST_EMAIL));
+    const login = await request(app)
+      .post("/auth/login")
+      .send({ email: TEST_EMAIL, password: TEST_PASSWORD });
+    const employeeToken = login.body.token;
+
+    __setTestProvider(
+      stubProvider([toolCallResult("tc1", "delete_task", { taskId }), textResult()]),
+    );
+
+    const pendingRes = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/chat`)
+      .set("Authorization", `Bearer ${employeeToken}`)
+      .send({ message: "delete Protected" });
+
+    const pendingActionId = pendingRes.body.awaitingConfirmation?.id;
+    expect(pendingActionId).toBeTruthy();
+
+    const confirmRes = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/confirm`)
+      .set("Authorization", `Bearer ${employeeToken}`)
+      .send({ pendingActionId, decision: "approve" });
+
+    // The confirmation is accepted, but canDeleteTask refuses the employee.
+    expect(confirmRes.status).toBe(200);
+    expect(confirmRes.body.ok).toBe(false);
+    expect(confirmRes.body.summary).toMatch(/insufficient permission|Forbidden/i);
+
+    // And the task is untouched.
+    const rows = await db
+      .select({ value: count() })
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+    expect(rows[0].value).toBe(1);
+  });
+
+  it("an admin can delete via the AI", async () => {
+    const taskRes = await request(app)
+      .post(`/workspace/${projectId}/tasks`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ title: "Deletable" });
+    const taskId = taskRes.body.id;
+
+    __setTestProvider(
+      stubProvider([toolCallResult("tc1", "delete_task", { taskId }), textResult()]),
+    );
+
+    const pendingRes = await chat(token, projectId, "delete Deletable");
+    const confirmRes = await request(app)
+      .post(`/workspace/projects/${projectId}/ai/confirm`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        pendingActionId: pendingRes.body.awaitingConfirmation.id,
+        decision: "approve",
+      });
+
+    expect(confirmRes.body.ok).toBe(true);
+    const rows = await db
+      .select({ value: count() })
+      .from(tasks)
+      .where(eq(tasks.id, taskId));
+    expect(rows[0].value).toBe(0);
+  });
+});
+
 describe("hadSearchStep flag", () => {
   let token: string;
   let projectId: number;

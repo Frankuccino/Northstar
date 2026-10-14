@@ -8,6 +8,7 @@ import {
   tasks,
   type AiClientScope,
 } from "../db/schema.js";
+import type { Actor } from "./workspace/access.js";
 
 const SCOPES: Record<AiClientScope, string[]> = {
   read: ["list_tasks", "get_task"],
@@ -67,20 +68,29 @@ export async function isUserProjectMember(
   return !!member;
 }
 
+// Who is asking the AI to act. An explicit union rather than a magic clientId:
+// the previous `clientId: 0` sentinel meant "authenticated user via chat",
+// which a reader had to know from a comment, and it made "a user did this"
+// indistinguishable from "a registered client did this" in the type.
+export type AiCaller =
+  | { kind: "user"; actor: Actor }
+  | { kind: "client"; clientId: number };
+
 export async function executeAiIntent(params: {
-  clientId: number;
-  actorUserId?: number;
-  actorRole?: string;
+  caller: AiCaller;
   projectId: number;
   intent: string;
   payload: Record<string, unknown>;
   ip?: string;
 }) {
-  const { clientId, actorUserId, actorRole, projectId, intent, payload, ip } = params;
+  const { caller, projectId, intent, payload, ip } = params;
 
-  // Groq path: clientId === 0 means authenticated user acting via AI chat.
-  // Skip client lookup — trust the user's role/permissions directly.
-  if (clientId !== 0) {
+  const clientId = caller.kind === "client" ? caller.clientId : 0;
+  const actorUserId = caller.kind === "user" ? caller.actor.id : undefined;
+  const actorRole = caller.kind === "user" ? caller.actor.role : undefined;
+
+  if (caller.kind === "client") {
+    // Registered client: verify it exists, is not revoked, and is scoped.
     const [client] = await db
       .select()
       .from(aiClients)
@@ -112,7 +122,8 @@ export async function executeAiIntent(params: {
       throw new Error("Intent not allowed for this client scope");
     }
   } else {
-    // For Groq path, scope is determined by user role:
+    // A user acting through the chat UI. No client to look up — the actor's
+    // own role determines the effective scope.
     // admin/manager = admin scope, member = write scope, otherwise read
     const effectiveRole = actorRole ?? "member";
     const scope: AiClientScope = effectiveRole === "admin" || effectiveRole === "manager" ? "admin" : "write";

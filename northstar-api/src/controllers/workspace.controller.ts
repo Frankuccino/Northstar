@@ -59,6 +59,7 @@ import {
   resolvePendingAction,
   expireStalePendingActions,
 } from "../services/ai-pending-actions.service.js";
+import type { Actor } from "../services/workspace/access.js";
 import {
   listTasksQuerySchema,
   listInvitationsQuerySchema,
@@ -435,12 +436,8 @@ export const executeAiIntentHandler = async (
     const client = await verifyAiClient(apiKey);
 
     const { intent, payload } = executeAiIntentSchema.parse(req.body);
-    const actorUserId = (req as any).user?.id;
-    const actorRole = (req as any).user?.role;
     const result = await executeAiIntent({
-      clientId: client.id,
-      actorUserId,
-      actorRole,
+      caller: { kind: "client", clientId: client.id },
       projectId: Number(req.params.id),
       intent,
       payload: payload ?? {},
@@ -511,8 +508,15 @@ export const aiChatHandler = async (
         .json({ error: "AI provider not configured. Set GROQ_API_KEY." });
     }
 
-    const userRole = (req as any).user?.role;
-    const userId = (req as any).user?.id;
+    // `req.user` is already typed as AuthPayload (id + Role) — no cast needed.
+    // The auth middleware guarantees it on this route, so a missing user is a
+    // programming error rather than a user error.
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    const actor: Actor = { id: req.user.id, role: req.user.role };
+    const userId = actor.id;
+    const userRole = actor.role;
 
     // ---- Agent activity (streamed when requested) -------------------------
     // A "step" is one thing the agent did: a tool call, with its args, result
@@ -590,7 +594,7 @@ export const aiChatHandler = async (
       }
 
       const finishStep = beginStep(name, args);
-      const envelope = await executeAction(name, args, { projectId, userId, userRole });
+      const envelope = await executeAction(name, args, { projectId, actor });
       return { kind: "result", envelope, parsed: finishStep(envelope) };
     };
 
@@ -739,7 +743,7 @@ export const aiChatHandler = async (
           const tc2 = turn2Result.toolCall;
           console.log("[AI] Turn 2 tool call:", tc2.name, tc2.arguments);
           const finishStep2 = beginStep(tc2.name, tc2.arguments);
-          const toolResult2 = await executeAction(tc2.name, tc2.arguments, { projectId, userId, userRole });
+          const toolResult2 = await executeAction(tc2.name, tc2.arguments, { projectId, actor });
           const parsed2 = finishStep2(toolResult2);
           toolExecuted = true;
           lastToolName = tc2.name;
@@ -864,9 +868,7 @@ export const aiChatHandler = async (
       finalIntent !== "list_tasks"
     ) {
       executionResult = await executeAiIntent({
-        clientId: 0,
-        actorUserId: userId,
-        actorRole: userRole,
+        caller: { kind: "user", actor },
         projectId,
         intent: finalIntent,
         payload: finalTextResult.payload,
@@ -936,8 +938,12 @@ export const aiConfirmHandler = async (
   try {
     const { pendingActionId, decision } = req.body ?? {};
     const projectId = Number(req.params.id);
-    const userId = (req as any).user?.id;
-    const userRole = (req as any).user?.role;
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    // The approver is the authenticated user, not the proposer — who approved
+    // a destructive action is the identity worth recording.
+    const actor: Actor = { id: req.user.id, role: req.user.role };
 
     if (typeof pendingActionId !== "string" || !pendingActionId) {
       return res.status(400).json({ error: "pendingActionId is required" });
@@ -979,8 +985,7 @@ export const aiConfirmHandler = async (
 
     const envelope = await executeAction(pending.actionName, pending.args, {
       projectId: pending.projectId,
-      userId,
-      userRole,
+      actor,
     });
     const parsed = safeParseEnvelope(envelope, pending.actionName);
 
