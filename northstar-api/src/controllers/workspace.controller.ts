@@ -874,42 +874,20 @@ export const aiChatHandler = async (
       }
     }
 
-    // Execute the final action (if actionable)
-    // Skip when a tool already executed, or when a gated action is awaiting
-    // confirmation — in both cases the tool path is authoritative. Without this
-    // guard, parseResponse() keyword-matches the LLM's prose and re-runs the
-    // mutation (or, for a pending action, invents an intent the legacy path
-    // doesn't know).
-    let executionResult = null;
-    // When a tool ran, the intent is whatever tool that was. parseResponse()
-    // guesses intent by keyword-matching prose, which produces nonsense once
-    // the LLM writes an explanation ("you could also create a new task" was
-    // being reported as intent: create_task).
-    const finalIntent = toolExecuted
-      ? lastToolName ?? "unknown"
-      : finalTextResult.intent;
-    if (
-      !toolExecuted &&
-      !awaitingConfirmation &&
-      finalIntent !== "help" &&
-      finalIntent !== "unknown" &&
-      finalIntent !== "list_tasks"
-    ) {
-      executionResult = await executeAiIntent({
-        caller: { kind: "user", actor },
-        projectId,
-        intent: finalIntent,
-        payload: finalTextResult.payload,
-      });
-    }
+    // The final intent is whatever tool actually ran. There is no prose
+    // guessing any more: parseResponse() no longer derives an intent, so a
+    // text response is just text. The legacy executeAiIntent fallback that
+    // used to run here is gone with it — that path is what re-ran mutations
+    // and invented intents from the model's explanations.
+    const finalIntent = toolExecuted ? (lastToolName ?? "unknown") : "unknown";
 
     const payload = {
       content: finalTextResult.content ?? finalTextResult.message,
       message: finalTextResult.message ?? finalTextResult.content ?? "OK",
       intent: finalIntent,
       payload: finalTextResult.payload,
-      executed: mutationExecuted || (executionResult?.ok ?? false),
-      changed: mutationExecuted || (executionResult?.ok ?? false),
+      executed: mutationExecuted,
+      changed: mutationExecuted,
       hadSearchStep,
       steps,
       // Set when a gated action is waiting for the human. The client renders a

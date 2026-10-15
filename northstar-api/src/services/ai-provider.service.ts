@@ -138,63 +138,50 @@ export class GroqProvider implements AiProvider {
       }
     }
 
-    // Text response — fallback to parseResponse for help/unknown/fallback
+    // Text response. No intent guessing — the tool path decides what ran, and
+    // a text response is just prose. See parseResponse for why.
     const content = message?.content ?? "";
     const parsed = this.parseResponse(content);
     return { kind: "text", ...parsed };
   }
 
+  // Normalize a text response.
+  //
+  // This used to GUESS intent by keyword-matching the prose ("create", "move",
+  // "assign") and regex out a payload. That guessing caused two real bugs:
+  // the LLM's confirmation text ("Your task has been created") re-triggered a
+  // mutation, and an explanation containing the phrase "you could also create
+  // a new task" was reported as intent: create_task with a garbage payload.
+  //
+  // Intent is now decided by which tool actually ran. This method only strips
+  // a stray JSON envelope if the model emits one and otherwise returns the
+  // text unchanged.
   private parseResponse(content: string): {
     content: string;
     message: string;
     intent: string;
     payload: Record<string, unknown>;
   } {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    // A model may wrap prose in a JSON envelope. Unwrap it for display, but
+    // never derive an intent from it — the tool path owns that.
+    const jsonMatch = content.match(/\{[^{}]*"message"[^{}]*\}/);
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          content: parsed.message ?? content,
-          message: parsed.message ?? content,
-          intent: parsed.intent ?? "unknown",
-          payload: parsed.payload ?? {},
-        };
+        if (typeof parsed.message === "string") {
+          return {
+            content: parsed.message,
+            message: parsed.message,
+            intent: "unknown",
+            payload: {},
+          };
+        }
       } catch {
-        // Fall through to text parsing
+        // Not a usable envelope — fall through and return the raw text.
       }
     }
 
-    const lower = content.toLowerCase();
-    if (lower.includes("create") || lower.includes("add")) {
-      return { content, message: content, intent: "create_task", payload: { title: this.extractTitle(content) } };
-    }
-    if (lower.includes("move") || lower.includes("set")) {
-      return { content, message: content, intent: "move_task", payload: { status: this.extractStatus(content) } };
-    }
-    if (lower.includes("assign")) {
-      return { content, message: content, intent: "assign_task", payload: { assigneeId: this.extractAssignee(content) } };
-    }
-
     return { content, message: content, intent: "unknown", payload: {} };
-  }
-
-  private extractTitle(text: string): string {
-    const match = text.match(/(?:called|named|titled)\s+["']?([^"']+?)["']?(?:\s|$)/i);
-    return match?.[1]?.trim() ?? "New Task";
-  }
-
-  private extractStatus(text: string): string {
-    const statuses = ["backlog", "ai_drafting", "ready", "in_progress", "needs_revision", "validated", "done"];
-    for (const status of statuses) {
-      if (text.toLowerCase().includes(status)) return status;
-    }
-    return "backlog";
-  }
-
-  private extractAssignee(text: string): string {
-    const match = text.match(/to\s+(\w+)/i);
-    return match?.[1] ?? "";
   }
 }
 
