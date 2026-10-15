@@ -114,7 +114,8 @@ confusion, delete the investigation — the fix doc plus git history
 | 3. Action Registry | ✅ Implemented | `ai-pattern-3-action-registry.md` |
 | 4. Risk-Gated Confirmation | ✅ Implemented (`delete_task` gated) | `ai-pattern-4-risk-gated-confirmation.md` |
 | 5. Actor Abstraction | ✅ Implemented | `ai-pattern-5-actor-abstraction.md` |
-| — Activity streaming | ✅ Phases 1–2 done (contract + SSE); Phase 3 polish left | `ai-agent-activity-streaming.md` |
+| — Activity streaming | ✅ Phases 1–3 done (contract, SSE, token streaming) | `ai-agent-activity-streaming.md` |
+| — Prose intent guessing | ✅ Removed — intent now comes from the tool that ran | — (see commit `24620b7`) |
 
 ---
 
@@ -122,6 +123,8 @@ confusion, delete the investigation — the fix doc plus git history
 
 | Commit | Bug | Doc |
 |---|---|---|
+| `24620b7` | Intent guessed from prose — re-ran mutations, invented payloads | — (see commit) |
+| `53c2f0b` | Stream failure mid-response 500'd the request | — (see commit) |
 | `57dd3db` | Pattern 4 — destructive actions had no human gate | `ai-pattern-4-risk-gated-confirmation.md` |
 | `677854a` | Rejected actions lost their reason; `changed`/`intent` reported wrongly | — (see commit) |
 | `dfc1190` | WIP-limit rejection returned 500; `hadSearchStep` missed Turn-1 searches | — (see commit) |
