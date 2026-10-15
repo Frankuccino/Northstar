@@ -49,6 +49,12 @@ function stubProvider(responses: ChatResult[]): AiProvider {
       callIndex++;
       return r;
     },
+    async *chatStream() {
+      // Yield the final text response's content so turn-cap recovery works.
+      const last = responses[responses.length - 1];
+      if (last.kind === "text") yield last.content;
+      else yield "";
+    },
   };
 }
 
@@ -58,6 +64,7 @@ function stubProvider(responses: ChatResult[]): AiProvider {
 function capturingProvider(responses: ChatResult[]) {
   let callIndex = 0;
   const calls: Array<{ previousMessages?: any[] }> = [];
+  const streamCalls: Array<{ previousMessages?: any[] }> = [];
   const provider: AiProvider = {
     async chat(params) {
       calls.push(params as any);
@@ -65,8 +72,12 @@ function capturingProvider(responses: ChatResult[]) {
       callIndex++;
       return r;
     },
+    async *chatStream(params) {
+      streamCalls.push(params as any);
+      yield "streamed";
+    },
   };
-  return { provider, calls };
+  return { provider, calls, streamCalls };
 }
 
 // Extract the tool-result envelopes fed back to the LLM. previousMessages
@@ -676,6 +687,10 @@ describe("turn-cap recovery", () => {
           status: "ready",
         });
       },
+      async *chatStream() {
+        sawToolsOnSummary = false;
+        yield "The move was rejected: backlog cannot go to ready.";
+      },
     };
     __setTestProvider(provider);
 
@@ -697,6 +712,9 @@ describe("turn-cap recovery", () => {
           taskId: 1,
           status: "ready",
         });
+      },
+      async *chatStream() {
+        throw new Error("provider exploded");
       },
     };
     __setTestProvider(provider);
