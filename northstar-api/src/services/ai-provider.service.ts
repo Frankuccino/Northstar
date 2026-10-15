@@ -13,6 +13,12 @@ export interface AiProvider {
     tools?: AiTool[];
     previousMessages?: Array<{ role: string; content: any; toolCallId?: string }>;
   }): Promise<ChatResult>;
+  chatStream(params: {
+    systemPrompt: string;
+    userMessage: string;
+    tools?: AiTool[];
+    previousMessages?: Array<{ role: string; content: any; toolCallId?: string }>;
+  }): AsyncGenerator<string>;
 }
 
 export type ChatResult =
@@ -32,6 +38,46 @@ export class GroqProvider implements AiProvider {
       apiKey: process.env.GROQ_API_KEY,
       baseURL: "https://api.groq.com/openai/v1",
     });
+  }
+
+  async *chatStream(params: {
+    systemPrompt: string;
+    userMessage: string;
+    tools?: AiTool[];
+    previousMessages?: Array<{ role: string; content: any; toolCallId?: string }>;
+  }): AsyncGenerator<string> {
+    const messages: Array<{ role: string; content: any; toolCallId?: string }> = [
+      { role: "system", content: params.systemPrompt },
+      { role: "user", content: params.userMessage },
+    ];
+    if (params.previousMessages) {
+      messages.push(...params.previousMessages);
+    }
+
+    const createParams: any = {
+      model: "openai/gpt-oss-120b",
+      messages,
+      temperature: 0.1,
+      max_tokens: 500,
+      stream: true,
+      tool_choice: params.tools?.length ? "auto" : undefined,
+    };
+
+    if (params.tools?.length) {
+      createParams.tools = params.tools.map((t) => ({
+        type: "function",
+        function: { name: t.name, description: t.description, parameters: t.parameters },
+      }));
+    }
+
+    const stream = (await this.client.chat.completions.create(
+      createParams,
+    )) as unknown as AsyncIterable<{ choices: Array<{ delta?: { content?: string } }> }>;
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content;
+      if (delta) yield delta;
+    }
   }
 
   async chat(params: {

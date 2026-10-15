@@ -600,6 +600,29 @@ export const aiChatHandler = async (
 
     let awaitingConfirmation: { id: string; summary: string } | null = null;
 
+    // Stream the final prose. A provider failure mid-stream must not 500 the
+    // whole request — return whatever text arrived, or a graceful fallback, so
+    // a hiccup after a successful mutation still reports what happened.
+    const streamFinalText = async (params: {
+      systemPrompt: string;
+      userMessage: string;
+      previousMessages: Array<{ role: string; content: any; tool_call_id?: string; tool_calls?: any[] }>;
+    }): Promise<string> => {
+      let text = "";
+      try {
+        for await (const delta of provider.chatStream(params)) {
+          text += delta;
+          if (streaming) emit("delta", { text: delta });
+        }
+      } catch (err: any) {
+        console.error("[AI] stream failed:", err?.message ?? err);
+        if (!text) {
+          text = "I wasn't able to complete that. Please try a different request.";
+        }
+      }
+      return text;
+    };
+
     // Define tools for the LLM — sourced from the action registry
     const tools = getToolDefinitions();
 
@@ -729,14 +752,13 @@ export const aiChatHandler = async (
               tool_call_id: turn2Result.toolCallId,
               content: searchEnvelope,
             });
-            const turn3Result = await provider.chat({
+            const text = await streamFinalText({
               systemPrompt: buildAiSystemPrompt(),
               userMessage: message,
-              tools,
               previousMessages,
             });
-            console.log("[AI] Turn 3:", JSON.stringify(turn3Result));
-            finalResult = turn3Result;
+            finalResult = { kind: "text", content: text, message: text, intent: "unknown", payload: {} };
+            console.log("[AI] Turn 3:", JSON.stringify(finalResult));
           }
         } else {
           // Second tool call that's not search = execute it (e.g. move/assign after search)
@@ -767,14 +789,13 @@ export const aiChatHandler = async (
             tool_call_id: turn2Result.toolCallId,
             content: toolResult2,
           });
-          const turn3Result = await provider.chat({
+          const text3 = await streamFinalText({
             systemPrompt: buildAiSystemPrompt(),
             userMessage: message,
-            tools,
             previousMessages,
           });
-          console.log("[AI] Turn 3 (after mutation):", JSON.stringify(turn3Result));
-          finalResult = turn3Result;
+          finalResult = { kind: "text", content: text3, message: text3, intent: "unknown", payload: {} };
+          console.log("[AI] Turn 3 (after mutation):", JSON.stringify(finalResult));
         }
       }
     }
@@ -819,11 +840,18 @@ export const aiChatHandler = async (
           ),
         });
 
-        const summary = await provider.chat({
+        const summaryText = await streamFinalText({
           systemPrompt: buildAiSystemPrompt(),
           userMessage: message,
           previousMessages,
         });
+        const summary: ChatResult = {
+          kind: "text",
+          content: summaryText,
+          message: summaryText,
+          intent: "unknown",
+          payload: {},
+        };
 
         finalTextResult =
           summary.kind === "text"
