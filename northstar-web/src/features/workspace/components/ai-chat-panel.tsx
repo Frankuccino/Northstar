@@ -190,6 +190,13 @@ export const AiChatPanel = ({ open, onOpenChange, onTasksChanged }: AiChatPanelP
       ]);
 
       const data = await aiChatStream(id, userInput, {
+        onDelta: (chunk) => {
+          // Streamed prose arrives as tokens — append to the placeholder so the
+          // user watches the answer write itself instead of waiting for one blob.
+          setMessages((prev) =>
+            prev.map((m) => (m.id === placeholderId ? { ...m, content: m.content + chunk } : m)),
+          );
+        },
         onStep: (step) => {
           // A tool emits a running frame then a terminal frame for the same
           // call — replace rather than append so the row updates in place.

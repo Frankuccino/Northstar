@@ -109,6 +109,7 @@ export async function aiChatStream(
   message: string,
   handlers: {
     onStep?: (step: AgentStep) => void;
+    onDelta?: (text: string) => void;
     signal?: AbortSignal;
   } = {},
 ): Promise<AiChatResponse> {
@@ -148,6 +149,8 @@ export async function aiChatStream(
 
       if (parsed.event === "step") {
         handlers.onStep?.(parsed.data as AgentStep);
+      } else if (parsed.event === "delta") {
+        handlers.onDelta?.((parsed.data as any)?.text ?? "");
       } else if (parsed.event === "done") {
         done = parsed.data as AiChatResponse;
       } else if (parsed.event === "error") {
